@@ -6,6 +6,7 @@ import com.fdlj.fdlj.dto.response.ApiResponse;
 import com.fdlj.fdlj.dto.response.PlayerResponse;
 import com.fdlj.fdlj.service.PlayerService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/players")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class PlayerController {
 
 	private final PlayerService playerService;
