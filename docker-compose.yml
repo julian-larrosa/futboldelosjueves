@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: fdlj-postgres
+    environment:
+      POSTGRES_DB: fdlj
+      POSTGRES_USER: fdlj
+      POSTGRES_PASSWORD: fdlj
+    ports:
+      - "5432:5432"
+    volumes:
+      - fdlj-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fdlj -d fdlj"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  fdlj-pgdata:
