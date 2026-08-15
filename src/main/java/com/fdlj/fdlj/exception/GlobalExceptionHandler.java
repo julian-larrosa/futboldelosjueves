@@ -30,6 +30,12 @@ public class GlobalExceptionHandler {
 				.body(ErrorResponse.of(HttpStatus.UNAUTHORIZED, ex.getMessage()));
 	}
 
+	@ExceptionHandler(InvalidMatchStateException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidMatchState(InvalidMatchStateException ex) {
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(ErrorResponse.of(HttpStatus.CONFLICT, ex.getMessage()));
+	}
+
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
 		String message = ex.getBindingResult().getFieldErrors().stream()

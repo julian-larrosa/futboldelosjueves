@@ -1,7 +1,10 @@
 package com.fdlj.fdlj.entity;
 
+import com.fdlj.fdlj.entity.enums.TeamSide;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,13 +18,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "match_participations",
-		uniqueConstraints = @UniqueConstraint(name = "uk_match_participation_match_player",
-				columnNames = { "match_id", "player_id" }))
+@Table(name = "teams",
+		uniqueConstraints = @UniqueConstraint(name = "uk_team_match_side",
+				columnNames = { "match_id", "side" }))
 @Getter
 @Setter
 @NoArgsConstructor
-public class MatchParticipation {
+public class Team {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,20 +34,7 @@ public class MatchParticipation {
 	@JoinColumn(name = "match_id", nullable = false)
 	private Match match;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "player_id", nullable = false)
-	private Player player;
-
-	@ManyToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "team_id")
-	private Team team;
-
-	@Column(name = "goles", nullable = false)
-	private Integer goles = 0;
-
-	@Column(name = "asistencias", nullable = false)
-	private Integer asistencias = 0;
-
-	@Column(name = "jugo_efectivamente")
-	private Boolean jugoEfectivamente;
+	@Enumerated(EnumType.STRING)
+	@Column(name = "side", nullable = false, length = 10)
+	private TeamSide side;
 }
