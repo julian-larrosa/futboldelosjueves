@@ -179,10 +179,10 @@ public abstract class IntegrationTestBase {
 				.andExpect(status().isOk());
 	}
 
-	protected void updateStats(String token, Long matchId, Long playerId, int goles, int asistencias, boolean jugoEfectivamente)
+	protected void updateStats(String token, Long matchId, Long playerId, int goles, boolean jugoEfectivamente)
 			throws Exception {
 		String body = objectMapper.writeValueAsString(
-				new MatchStatisticsUpdateRequest(goles, asistencias, jugoEfectivamente));
+				new MatchStatisticsUpdateRequest(goles, jugoEfectivamente));
 		mockMvc.perform(put("/api/matches/" + matchId + "/participations/" + playerId)
 						.header("Authorization", bearer(token))
 						.contentType(MediaType.APPLICATION_JSON)
@@ -247,7 +247,7 @@ public abstract class IntegrationTestBase {
 
 	private void marcarEfectivos(String adminToken, Long matchId) throws Exception {
 		for (Long playerId : convocadosIds(adminToken, matchId)) {
-			updateStats(adminToken, matchId, playerId, 0, 0, true);
+			updateStats(adminToken, matchId, playerId, 0, true);
 		}
 	}
 

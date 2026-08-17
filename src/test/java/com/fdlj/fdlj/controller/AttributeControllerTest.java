@@ -253,7 +253,7 @@ class AttributeControllerTest extends IntegrationTestBase {
 
 	private void marcarEfectivos(String adminToken, Long matchId) throws Exception {
 		for (Long playerId : convocadosIds(adminToken, matchId)) {
-			updateStats(adminToken, matchId, playerId, 0, 0, true);
+			updateStats(adminToken, matchId, playerId, 0, true);
 		}
 	}
 }

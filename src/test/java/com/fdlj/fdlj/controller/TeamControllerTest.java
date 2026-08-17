@@ -5,6 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import tools.jackson.databind.JsonNode;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,13 +33,29 @@ class TeamControllerTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void generateTeams_with8Players_returns409() throws Exception {
+	void generateTeams_with8Players_returns200() throws Exception {
 		String admin = adminToken();
 		Long matchId = createMatch(admin);
 		openConvocatoria(admin, matchId);
 		for (int i = 0; i < 8; i++) {
 			convocar(admin, matchId, createPlayer("Jugador" + i));
 		}
+		closeConvocatoria(admin, matchId);
+		mockMvc.perform(post("/api/matches/" + matchId + "/teams/generate")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.length()").value(2))
+				.andExpect(jsonPath("$.data[0].jugadores.length()").value(4))
+				.andExpect(jsonPath("$.data[1].jugadores.length()").value(4));
+	}
+
+	@Test
+	void generateTeams_with1Player_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatch(admin);
+		openConvocatoria(admin, matchId);
+		convocar(admin, matchId, createPlayer("Jugador0"));
 		closeConvocatoria(admin, matchId);
 		mockMvc.perform(post("/api/matches/" + matchId + "/teams/generate")
 						.header("Authorization", bearer(admin)))
@@ -74,17 +93,34 @@ class TeamControllerTest extends IntegrationTestBase {
 		String admin = adminToken();
 		Long matchId = createMatch(admin);
 		openConvocatoria(admin, matchId);
-		Long extra = createPlayer("Extra");
-		for (int i = 0; i < 10; i++) {
-			convocar(admin, matchId, createPlayer("Jugador" + i));
+		List<Long> playerIds = new java.util.ArrayList<>();
+		for (int i = 0; i < 11; i++) {
+			Long pid = createPlayer("Jugador" + i);
+			playerIds.add(pid);
+			convocar(admin, matchId, pid);
 		}
-		convocar(admin, matchId, extra);
 		closeConvocatoria(admin, matchId);
 		generateTeams(admin, matchId);
 
-		mockMvc.perform(put("/api/matches/" + matchId + "/teams/" + extra)
+		String teamsJson = mockMvc.perform(get("/api/matches/" + matchId + "/teams")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andReturn().getResponse().getContentAsString();
+		JsonNode teams = objectMapper.readTree(teamsJson).at("/data");
+		String smallerSide = null;
+		Long playerOnSmaller = null;
+		for (JsonNode team : teams) {
+			if (team.get("jugadores").size() < 6) {
+				smallerSide = team.get("side").asText();
+				playerOnSmaller = team.get("jugadores").get(0).get("playerId").asLong();
+				break;
+			}
+		}
+		String targetSide = "EQUIPO_A".equals(smallerSide) ? "EQUIPO_B" : "EQUIPO_A";
+
+		mockMvc.perform(put("/api/matches/" + matchId + "/teams/" + playerOnSmaller)
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"teamSide\":\"EQUIPO_A\"}")
+						.content("{\"teamSide\":\"" + targetSide + "\"}")
 						.header("Authorization", bearer(admin)))
 				.andExpect(status().isConflict());
 	}

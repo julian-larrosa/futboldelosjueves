@@ -9,7 +9,6 @@ public record ParticipationResponse(
 		Long teamId,
 		TeamSide teamSide,
 		Integer goles,
-		Integer asistencias,
 		Boolean jugoEfectivamente
 ) {
 }

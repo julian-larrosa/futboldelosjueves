@@ -42,9 +42,6 @@ public class MatchParticipation {
 	@Column(name = "goles", nullable = false)
 	private Integer goles = 0;
 
-	@Column(name = "asistencias", nullable = false)
-	private Integer asistencias = 0;
-
 	@Column(name = "jugo_efectivamente")
 	private Boolean jugoEfectivamente;
 }

@@ -7,7 +7,6 @@ public record PlayerStatisticsResponse(
 		int derrotas,
 		int empates,
 		int goles,
-		int asistencias,
 		Double ratingPromedio,
 		Double porcentajeVictorias,
 		RecentFormResponse rendimientoReciente
