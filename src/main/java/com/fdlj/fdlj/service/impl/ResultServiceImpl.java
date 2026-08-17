@@ -15,11 +15,13 @@ import com.fdlj.fdlj.repository.MatchParticipationRepository;
 import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.service.ResultService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ResultServiceImpl implements ResultService {
 
 	private final MatchRepository matchRepository;
@@ -46,6 +48,7 @@ public class ResultServiceImpl implements ResultService {
 		}
 		match.setGolesEquipoA(request.golesEquipoA());
 		match.setGolesEquipoB(request.golesEquipoB());
+		log.info("Resultado corregido en partido id={}: {}-{}", matchId, request.golesEquipoA(), request.golesEquipoB());
 		return matchMapper.toResultResponse(matchRepository.save(match));
 	}
 
@@ -62,6 +65,7 @@ public class ResultServiceImpl implements ResultService {
 		participation.setGoles(request.goles());
 		participation.setAsistencias(request.asistencias());
 		participation.setJugoEfectivamente(request.jugoEfectivamente());
+		log.info("Stats actualizadas: jugador id={} en partido id={}, goles={}, asistencias={}", playerId, matchId, request.goles(), request.asistencias());
 		return participationMapper.toResponse(participationRepository.save(participation));
 	}
 

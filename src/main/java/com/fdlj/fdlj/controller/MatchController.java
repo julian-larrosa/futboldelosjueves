@@ -5,11 +5,17 @@ import com.fdlj.fdlj.dto.request.MatchRequest;
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.response.ApiResponse;
 import com.fdlj.fdlj.dto.response.MatchResponse;
+import com.fdlj.fdlj.dto.response.PagedResponse;
+import com.fdlj.fdlj.entity.enums.MatchStatus;
 import com.fdlj.fdlj.service.MatchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,9 +25,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import java.time.OffsetDateTime;
 
 @RestController
 @RequestMapping("/api/matches")
@@ -42,10 +49,29 @@ public class MatchController {
 	}
 
 	@GetMapping
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "lista de partidos")
-	@Operation(summary = "Listar partidos", description = "Devuelve todos los partidos ordenados por fecha descendente")
-	public ResponseEntity<ApiResponse<List<MatchResponse>>> getAllMatches() {
-		return ResponseEntity.ok().body(ApiResponse.ok(matchService.getAllMatches()));
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "lista paginada de partidos")
+	@Operation(summary = "Listar partidos", description = "Devuelve partidos con paginación y filtros")
+	public ResponseEntity<ApiResponse<PagedResponse<MatchResponse>>> getAllMatches(
+			@RequestParam(required = false) MatchStatus estado,
+			@RequestParam(required = false) String lugar,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaDesde,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime fechaHasta,
+			@RequestParam(defaultValue = "0") int page,
+			@RequestParam(defaultValue = "10") int size,
+			@RequestParam(defaultValue = "fechaHora:desc") String sort) {
+		String[] parts = sort.split(":");
+		String property = parts[0];
+		Sort.Direction dir = parts.length > 1
+				? Sort.Direction.fromString(parts[1])
+				: Sort.Direction.ASC;
+		Pageable pageable = PageRequest.of(page, size, Sort.by(dir, property));
+		PagedResponse<MatchResponse> response;
+		if (estado != null || lugar != null || fechaDesde != null || fechaHasta != null) {
+			response = matchService.searchMatches(estado, lugar, fechaDesde, fechaHasta, pageable);
+		} else {
+			response = matchService.getAllMatches(pageable);
+		}
+		return ResponseEntity.ok().body(ApiResponse.ok(response));
 	}
 
 	@GetMapping("/{id}")

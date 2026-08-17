@@ -1,6 +1,7 @@
 package com.fdlj.fdlj.service.impl;
 
 import com.fdlj.fdlj.dto.request.ParticipationRequest;
+import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.dto.response.ParticipationResponse;
 import com.fdlj.fdlj.entity.Match;
 import com.fdlj.fdlj.entity.MatchParticipation;
@@ -15,13 +16,15 @@ import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.service.ParticipationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ParticipationServiceImpl implements ParticipationService {
 
 	private final MatchRepository matchRepository;
@@ -43,6 +46,7 @@ public class ParticipationServiceImpl implements ParticipationService {
 		participation.setPlayer(player);
 		participation.setGoles(0);
 		participation.setAsistencias(0);
+		log.info("Jugador {} {} convocado al partido id={}", player.getNombre(), player.getApellido(), matchId);
 		return participationMapper.toResponse(participationRepository.save(participation));
 	}
 
@@ -52,16 +56,16 @@ public class ParticipationServiceImpl implements ParticipationService {
 		Match match = findMatch(matchId);
 		ensureState(match, MatchStatus.PROGRAMADO, MatchStatus.CONVOCATORIA_ABIERTA);
 		MatchParticipation participation = findParticipation(matchId, playerId);
+		log.info("Jugador id={} removido de convocatoria del partido id={}", playerId, matchId);
 		participationRepository.delete(participation);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<ParticipationResponse> getParticipations(Long matchId) {
+	public PagedResponse<ParticipationResponse> getParticipations(Long matchId, Pageable pageable) {
 		findMatch(matchId);
-		return participationRepository.findByMatchIdOrderByIdAsc(matchId).stream()
-				.map(participationMapper::toResponse)
-				.toList();
+		Page<MatchParticipation> page = participationRepository.findByMatchIdOrderByIdAsc(matchId, pageable);
+		return PagedResponse.of(page.map(participationMapper::toResponse));
 	}
 
 	@Override

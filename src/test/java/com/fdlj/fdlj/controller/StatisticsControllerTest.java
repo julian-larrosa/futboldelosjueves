@@ -41,7 +41,9 @@ class StatisticsControllerTest extends IntegrationTestBase {
 				.andExpect(jsonPath("$.data.partidosJugados").value(1))
 				.andExpect(jsonPath("$.data.goles").value(0))
 				.andExpect(jsonPath("$.data.asistencias").value(0))
-				.andExpect(jsonPath("$.data.rendimientoReciente.partidosJugados").value(1));
+				.andExpect(jsonPath("$.data.ratingPromedio").isNumber())
+				.andExpect(jsonPath("$.data.rendimientoReciente.partidosJugados").value(1))
+				.andExpect(jsonPath("$.data.rendimientoReciente.indiceForma").isNumber());
 	}
 
 	@Test
@@ -55,7 +57,32 @@ class StatisticsControllerTest extends IntegrationTestBase {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.partidosJugados").value(1))
-				.andExpect(jsonPath("$.data.goles").value(0));
+				.andExpect(jsonPath("$.data.goles").value(0))
+				.andExpect(jsonPath("$.data.indiceForma").isNumber());
+	}
+
+	@Test
+	void getMatchStandings_returns200() throws Exception {
+		String admin = adminToken();
+		Long matchId = setupFinishedMatch10(admin);
+		mockMvc.perform(get("/api/matches/" + matchId + "/standings")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.length()").value(10))
+				.andExpect(jsonPath("$.data[0].puntos").isNumber())
+				.andExpect(jsonPath("$.data[0].diferenciaGoles").isNumber());
+	}
+
+	@Test
+	void getTopScorers_returns200() throws Exception {
+		String admin = adminToken();
+		setupFinishedMatch10(admin);
+		mockMvc.perform(get("/api/statistics/top-scorers")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data").isArray());
 	}
 
 	@Test

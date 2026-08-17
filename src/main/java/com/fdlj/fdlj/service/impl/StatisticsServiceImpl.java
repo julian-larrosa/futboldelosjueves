@@ -3,9 +3,13 @@ package com.fdlj.fdlj.service.impl;
 import com.fdlj.fdlj.dto.response.ParticipationResponse;
 import com.fdlj.fdlj.dto.response.PlayerStatisticsResponse;
 import com.fdlj.fdlj.dto.response.RecentFormResponse;
+import com.fdlj.fdlj.dto.response.TeamStandingResponse;
+import com.fdlj.fdlj.dto.response.TopScorerResponse;
 import com.fdlj.fdlj.entity.MatchParticipation;
 import com.fdlj.fdlj.entity.Player;
+import com.fdlj.fdlj.entity.PlayerAttribute;
 import com.fdlj.fdlj.entity.Team;
+import com.fdlj.fdlj.entity.enums.AttributeType;
 import com.fdlj.fdlj.entity.enums.MatchStatus;
 import com.fdlj.fdlj.entity.enums.ResultadoPartido;
 import com.fdlj.fdlj.entity.enums.TeamSide;
@@ -13,14 +17,18 @@ import com.fdlj.fdlj.exception.ResourceNotFoundException;
 import com.fdlj.fdlj.mapper.MatchParticipationMapper;
 import com.fdlj.fdlj.repository.MatchParticipationRepository;
 import com.fdlj.fdlj.repository.MatchRepository;
+import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
-import com.fdlj.fdlj.repository.RatingRepository;
 import com.fdlj.fdlj.service.StatisticsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +39,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 	private final MatchRepository matchRepository;
 	private final PlayerRepository playerRepository;
 	private final MatchParticipationRepository participationRepository;
-	private final RatingRepository ratingRepository;
+	private final PlayerAttributeRepository attributeRepository;
 	private final MatchParticipationMapper participationMapper;
 
 	@Override
@@ -53,6 +61,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 		double porcentaje = aggregated.partidos() > 0
 				? Math.round(aggregated.victorias() * 100.0 / aggregated.partidos())
 				: 0.0;
+		Double ratingPromedio = calculateAttributeAverage(playerId);
 		return new PlayerStatisticsResponse(
 				playerId,
 				aggregated.partidos(),
@@ -61,7 +70,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 				aggregated.empates(),
 				aggregated.goles(),
 				aggregated.asistencias(),
-				ratingRepository.averageByCalificadoId(playerId),
+				ratingPromedio,
 				porcentaje,
 				getRecentForm(playerId, DEFAULT_RECENT_LIMIT)
 		);
@@ -74,6 +83,11 @@ public class StatisticsServiceImpl implements StatisticsService {
 		List<MatchParticipation> played = participationsPlayed(playerId);
 		int size = Math.min(Math.max(limit, 1), played.size());
 		Aggregated aggregated = aggregate(played.subList(0, size));
+		double indiceForma = aggregated.partidos() > 0
+				? Math.round((aggregated.victorias() * 1.0 + aggregated.empates() * 0.5) * 100.0
+						/ aggregated.partidos()) / 100.0
+				: 0.0;
+		Double ratingPromedio = calculateAttributeAverage(playerId);
 		return new RecentFormResponse(
 				aggregated.partidos(),
 				aggregated.victorias(),
@@ -81,8 +95,118 @@ public class StatisticsServiceImpl implements StatisticsService {
 				aggregated.empates(),
 				aggregated.goles(),
 				aggregated.asistencias(),
-				ratingRepository.averageByCalificadoId(playerId)
+				ratingPromedio,
+				indiceForma
 		);
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<TeamStandingResponse> getMatchStandings(Long matchId) {
+		matchRepository.findById(matchId)
+				.orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado con id: " + matchId));
+		List<MatchParticipation> played = participationRepository.findByMatchIdAndJugoEfectivamenteTrue(matchId);
+
+		Map<Long, StandingAccumulator> accumulators = new LinkedHashMap<>();
+		for (MatchParticipation participation : played) {
+			Long playerId = participation.getPlayer().getId();
+			StandingAccumulator acc = accumulators.computeIfAbsent(playerId,
+					id -> new StandingAccumulator(participation.getPlayer()));
+
+			acc.partidosJugados++;
+
+			TeamSide side = teamSideOf(participation);
+			if (side == null) {
+				continue;
+			}
+
+			int golesA = participation.getMatch().getGolesEquipoA();
+			int golesB = participation.getMatch().getGolesEquipoB();
+
+			if (side == TeamSide.EQUIPO_A) {
+				acc.golesAFavor += golesA;
+				acc.golesEnContra += golesB;
+			} else {
+				acc.golesAFavor += golesB;
+				acc.golesEnContra += golesA;
+			}
+
+			ResultadoPartido resultado = resultFor(participation);
+			if (resultado == ResultadoPartido.EMPATE) {
+				acc.empates++;
+				acc.puntos += 1;
+			} else if ((side == TeamSide.EQUIPO_A && resultado == ResultadoPartido.GANA_EQUIPO_A)
+					|| (side == TeamSide.EQUIPO_B && resultado == ResultadoPartido.GANA_EQUIPO_B)) {
+				acc.victorias++;
+				acc.puntos += 3;
+			} else {
+				acc.derrotas++;
+			}
+		}
+
+		return accumulators.values().stream()
+				.map(acc -> new TeamStandingResponse(
+						acc.player.getId(),
+						acc.player.getNombre(),
+						acc.player.getApellido(),
+						acc.partidosJugados,
+						acc.victorias,
+						acc.empates,
+						acc.derrotas,
+						acc.golesAFavor,
+						acc.golesEnContra,
+						acc.golesAFavor - acc.golesEnContra,
+						acc.puntos))
+				.sorted(Comparator
+						.comparingInt(TeamStandingResponse::puntos).reversed()
+						.thenComparingInt(TeamStandingResponse::diferenciaGoles).reversed()
+						.thenComparingInt(TeamStandingResponse::golesAFavor).reversed())
+				.toList();
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public List<TopScorerResponse> getTopScorers() {
+		Map<Long, ScorerAccumulator> accumulators = new LinkedHashMap<>();
+
+		List<MatchParticipation> allPlayed = participationRepository.findAll().stream()
+				.filter(p -> p.getMatch().getEstado() == MatchStatus.FINALIZADO
+						&& Boolean.TRUE.equals(p.getJugoEfectivamente()))
+				.toList();
+
+		for (MatchParticipation p : allPlayed) {
+			Long playerId = p.getPlayer().getId();
+			ScorerAccumulator acc = accumulators.computeIfAbsent(playerId,
+					id -> new ScorerAccumulator(p.getPlayer()));
+			acc.goles += p.getGoles();
+			acc.asistencias += p.getAsistencias();
+			acc.partidosJugados++;
+		}
+
+		return accumulators.values().stream()
+				.map(acc -> new TopScorerResponse(
+						acc.player.getId(),
+						acc.player.getNombre(),
+						acc.player.getApellido(),
+						acc.goles,
+						acc.asistencias,
+						acc.partidosJugados))
+				.sorted(Comparator
+						.comparingInt(TopScorerResponse::goles).reversed()
+						.thenComparingInt(TopScorerResponse::asistencias).reversed()
+						.thenComparingInt(TopScorerResponse::partidosJugados))
+				.toList();
+	}
+
+	private Double calculateAttributeAverage(Long playerId) {
+		List<PlayerAttribute> attributes = attributeRepository.findByPlayerId(playerId);
+		if (attributes.isEmpty()) {
+			return 5.0;
+		}
+		double sum = attributes.stream()
+				.mapToDouble(PlayerAttribute::getCurrentValue)
+				.sum();
+		return Math.round(sum / attributes.size() * 100.0) / 100.0;
 	}
 
 	private List<MatchParticipation> participationsPlayed(Long playerId) {
@@ -147,5 +271,31 @@ public class StatisticsServiceImpl implements StatisticsService {
 			int goles,
 			int asistencias
 	) {
+	}
+
+	private static class StandingAccumulator {
+		final Player player;
+		int partidosJugados = 0;
+		int victorias = 0;
+		int empates = 0;
+		int derrotas = 0;
+		int golesAFavor = 0;
+		int golesEnContra = 0;
+		int puntos = 0;
+
+		StandingAccumulator(Player player) {
+			this.player = player;
+		}
+	}
+
+	private static class ScorerAccumulator {
+		final Player player;
+		int goles = 0;
+		int asistencias = 0;
+		int partidosJugados = 0;
+
+		ScorerAccumulator(Player player) {
+			this.player = player;
+		}
 	}
 }

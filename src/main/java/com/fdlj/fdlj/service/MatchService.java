@@ -3,8 +3,11 @@ package com.fdlj.fdlj.service;
 import com.fdlj.fdlj.dto.request.MatchRequest;
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.response.MatchResponse;
+import com.fdlj.fdlj.dto.response.PagedResponse;
+import com.fdlj.fdlj.entity.enums.MatchStatus;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
+import java.time.OffsetDateTime;
 
 public interface MatchService {
 
@@ -12,7 +15,9 @@ public interface MatchService {
 
 	MatchResponse getMatchById(Long id);
 
-	List<MatchResponse> getAllMatches();
+	PagedResponse<MatchResponse> getAllMatches(Pageable pageable);
+
+	PagedResponse<MatchResponse> searchMatches(MatchStatus estado, String lugar, OffsetDateTime fechaDesde, OffsetDateTime fechaHasta, Pageable pageable);
 
 	MatchResponse updateMatch(Long id, MatchRequest request);
 

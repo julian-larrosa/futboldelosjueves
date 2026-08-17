@@ -3,6 +3,7 @@ package com.fdlj.fdlj.service.impl;
 import com.fdlj.fdlj.dto.request.MatchRequest;
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.response.MatchResponse;
+import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.entity.Match;
 import com.fdlj.fdlj.entity.enums.MatchStatus;
 import com.fdlj.fdlj.exception.InvalidMatchStateException;
@@ -12,13 +13,17 @@ import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.repository.TeamRepository;
 import com.fdlj.fdlj.service.MatchService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.time.OffsetDateTime;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class MatchServiceImpl implements MatchService {
 
 	private final MatchRepository matchRepository;
@@ -28,7 +33,9 @@ public class MatchServiceImpl implements MatchService {
 	@Override
 	@Transactional
 	public MatchResponse createMatch(MatchRequest request) {
-		return matchMapper.toResponse(matchRepository.save(matchMapper.toEntity(request)));
+		MatchResponse response = matchMapper.toResponse(matchRepository.save(matchMapper.toEntity(request)));
+		log.info("Partido creado: id={}, lugar={}", response.id(), response.lugar());
+		return response;
 	}
 
 	@Override
@@ -39,10 +46,16 @@ public class MatchServiceImpl implements MatchService {
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<MatchResponse> getAllMatches() {
-		return matchRepository.findAllByOrderByFechaHoraDesc().stream()
-				.map(matchMapper::toResponse)
-				.toList();
+	public PagedResponse<MatchResponse> getAllMatches(Pageable pageable) {
+		Page<Match> page = matchRepository.findAll(pageable);
+		return PagedResponse.of(page.map(matchMapper::toResponse));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public PagedResponse<MatchResponse> searchMatches(MatchStatus estado, String lugar, OffsetDateTime fechaDesde, OffsetDateTime fechaHasta, Pageable pageable) {
+		Page<Match> page = matchRepository.searchMatches(estado, lugar, fechaDesde, fechaHasta, pageable);
+		return PagedResponse.of(page.map(matchMapper::toResponse));
 	}
 
 	@Override
@@ -60,6 +73,7 @@ public class MatchServiceImpl implements MatchService {
 	public MatchResponse openConvocatoria(Long id) {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.PROGRAMADO, MatchStatus.CONVOCATORIA_ABIERTA);
+		log.info("Convocatoria abierta para partido id={}", id);
 		return matchMapper.toResponse(matchRepository.save(match));
 	}
 
@@ -68,6 +82,7 @@ public class MatchServiceImpl implements MatchService {
 	public MatchResponse closeConvocatoria(Long id) {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.CONVOCATORIA_ABIERTA, MatchStatus.CONVOCATORIA_CERRADA);
+		log.info("Convocatoria cerrada para partido id={}", id);
 		return matchMapper.toResponse(matchRepository.save(match));
 	}
 
@@ -76,6 +91,7 @@ public class MatchServiceImpl implements MatchService {
 	public MatchResponse reopenConvocatoria(Long id) {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.CONVOCATORIA_CERRADA, MatchStatus.CONVOCATORIA_ABIERTA);
+		log.info("Convocatoria reabierta para partido id={}", id);
 		return matchMapper.toResponse(matchRepository.save(match));
 	}
 
@@ -88,6 +104,7 @@ public class MatchServiceImpl implements MatchService {
 			throw new InvalidMatchStateException("No se puede iniciar el partido sin equipos generados");
 		}
 		match.setEstado(MatchStatus.EN_CURSO);
+		log.info("Partido iniciado: id={}", id);
 		return matchMapper.toResponse(matchRepository.save(match));
 	}
 
@@ -98,6 +115,7 @@ public class MatchServiceImpl implements MatchService {
 		transition(match, MatchStatus.EN_CURSO, MatchStatus.FINALIZADO);
 		match.setGolesEquipoA(request.golesEquipoA());
 		match.setGolesEquipoB(request.golesEquipoB());
+		log.info("Partido finalizado: id={}, resultado={}-{}", id, request.golesEquipoA(), request.golesEquipoB());
 		return matchMapper.toResponse(matchRepository.save(match));
 	}
 
@@ -109,6 +127,7 @@ public class MatchServiceImpl implements MatchService {
 			throw new InvalidMatchStateException("El partido ya está " + match.getEstado() + " y no puede cancelarse");
 		}
 		match.setEstado(MatchStatus.CANCELADO);
+		log.info("Partido cancelado: id={}", id);
 		return matchMapper.toResponse(matchRepository.save(match));
 	}
 

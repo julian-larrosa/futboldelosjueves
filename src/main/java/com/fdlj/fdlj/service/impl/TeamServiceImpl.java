@@ -18,6 +18,7 @@ import com.fdlj.fdlj.repository.RatingRepository;
 import com.fdlj.fdlj.repository.TeamRepository;
 import com.fdlj.fdlj.service.TeamService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +28,10 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TeamServiceImpl implements TeamService {
 
-	private static final int MIN_PLAYERS = 10;
-	private static final int MAX_PLAYERS_PER_TEAM = 5;
+	private static final int MIN_PLAYERS = 2;
 
 	private final MatchRepository matchRepository;
 	private final MatchParticipationRepository participationRepository;
@@ -70,19 +71,22 @@ public class TeamServiceImpl implements TeamService {
 		teamB.setSide(TeamSide.EQUIPO_B);
 		teamRepository.save(teamB);
 
-		int selected = Math.min(draft.size(), MAX_PLAYERS_PER_TEAM * 2);
 		List<MatchParticipation> toSave = new ArrayList<>();
-		for (int i = 0; i < selected; i++) {
+		for (int i = 0; i < draft.size(); i++) {
 			MatchParticipation participation = draft.get(i);
-			int round = i / MAX_PLAYERS_PER_TEAM;
-			int index = i % MAX_PLAYERS_PER_TEAM;
-			boolean teamAFirst = round % 2 == 0;
-			boolean pickTeamA = teamAFirst ? (index % 2 == 0) : (index % 2 == 1);
-			participation.setTeam(pickTeamA ? teamA : teamB);
+			int roundOfTwo = i / 2;
+			boolean reverse = (roundOfTwo % 2 == 1);
+			boolean firstPickOfRound = (i % 2 == 0);
+			boolean pickA = reverse ? !firstPickOfRound : firstPickOfRound;
+			participation.setTeam(pickA ? teamA : teamB);
 			toSave.add(participation);
 		}
 		participationRepository.saveAll(toSave);
 
+		int teamASize = draft.size() / 2;
+		int teamBSize = draft.size() - teamASize;
+		log.info("Equipos generados para partido id={}: {} jugadores en Equipo A, {} en Equipo B",
+				matchId, teamASize, teamBSize);
 		return buildTeamResponses(matchId);
 	}
 
@@ -113,12 +117,19 @@ public class TeamServiceImpl implements TeamService {
 		long targetCount = participationRepository.findByTeamIdOrderByIdAsc(target.getId()).stream()
 				.filter(m -> m.getPlayer().isActivo())
 				.count();
-		if (targetCount >= MAX_PLAYERS_PER_TEAM) {
+		TeamSide otherSide = request.teamSide() == TeamSide.EQUIPO_A ? TeamSide.EQUIPO_B : TeamSide.EQUIPO_A;
+		long otherCount = teamRepository.findByMatchIdAndSide(matchId, otherSide)
+				.map(other -> participationRepository.findByTeamIdOrderByIdAsc(other.getId()).stream()
+						.filter(m -> m.getPlayer().isActivo())
+						.count())
+				.orElse(0L);
+		if (targetCount >= otherCount + 1) {
 			throw new InvalidMatchStateException("El equipo " + request.teamSide()
-					+ " ya tiene " + MAX_PLAYERS_PER_TEAM + " jugadores");
+					+ " ya tiene " + targetCount + " jugadores y no puede tener más de 1 de diferencia con el otro equipo");
 		}
 		participation.setTeam(target);
 		participationRepository.save(participation);
+		log.info("Jugador id={} asignado manualmente a {} en partido id={}", playerId, request.teamSide(), matchId);
 		return buildTeamResponses(matchId);
 	}
 

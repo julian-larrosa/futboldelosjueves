@@ -1,9 +1,10 @@
 package com.fdlj.fdlj.service;
 
 import com.fdlj.fdlj.dto.request.PlayerRequest;
+import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.dto.response.PlayerResponse;
-
-import java.util.List;
+import com.fdlj.fdlj.entity.enums.PlayerPosition;
+import org.springframework.data.domain.Pageable;
 
 public interface PlayerService {
 
@@ -11,7 +12,9 @@ public interface PlayerService {
 
 	PlayerResponse getPlayerById(Long id);
 
-	List<PlayerResponse> getAllPlayers();
+	PagedResponse<PlayerResponse> getAllPlayers(Pageable pageable);
+
+	PagedResponse<PlayerResponse> searchPlayers(String nombre, String apellido, String email, PlayerPosition posicion, Pageable pageable);
 
 	PlayerResponse updatePlayer(Long id, PlayerRequest request);
 
