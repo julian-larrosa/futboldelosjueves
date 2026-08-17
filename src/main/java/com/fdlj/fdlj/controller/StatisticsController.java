@@ -4,6 +4,7 @@ import com.fdlj.fdlj.config.SwaggerConstants;
 import com.fdlj.fdlj.dto.response.ApiResponse;
 import com.fdlj.fdlj.dto.response.ParticipationResponse;
 import com.fdlj.fdlj.dto.response.PlayerStatisticsResponse;
+import com.fdlj.fdlj.dto.response.RatingAverageResponse;
 import com.fdlj.fdlj.dto.response.RecentFormResponse;
 import com.fdlj.fdlj.dto.response.TeamStandingResponse;
 import com.fdlj.fdlj.dto.response.TopScorerResponse;
@@ -36,33 +37,53 @@ public class StatisticsController {
 	}
 
 	@GetMapping("/players/{playerId}/statistics")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "estadísticas históricas del jugador")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "estadísticas del jugador")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "jugador no encontrado")
-	@Operation(summary = "Estadísticas del jugador", description = "Devuelve estadísticas históricas derivadas de los partidos finalizados")
-	public ResponseEntity<ApiResponse<PlayerStatisticsResponse>> getPlayerStatistics(@PathVariable Long playerId) {
-		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getPlayerStatistics(playerId)));
+	@Operation(summary = "Estadísticas del jugador", description = "Devuelve estadísticas derivadas de los partidos finalizados. Sin el parámetro year devuelve el histórico acumulado; con year (ej. 2026) filtra por temporada")
+	public ResponseEntity<ApiResponse<PlayerStatisticsResponse>> getPlayerStatistics(
+			@PathVariable Long playerId, @RequestParam(required = false) Integer year) {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getPlayerStatistics(playerId, year)));
 	}
 
 	@GetMapping("/players/{playerId}/statistics/recent")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "rendimiento reciente del jugador")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "jugador no encontrado")
-	@Operation(summary = "Rendimiento reciente", description = "Devuelve el rendimiento de los últimos partidos finalizados del jugador")
+	@Operation(summary = "Rendimiento reciente", description = "Devuelve el rendimiento de los últimos partidos finalizados del jugador. Sin year son los últimos partidos históricos; con year (ej. 2026) los últimos de esa temporada")
 	public ResponseEntity<ApiResponse<RecentFormResponse>> getRecentForm(
-			@PathVariable Long playerId, @RequestParam(defaultValue = "3") int limit) {
-		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getRecentForm(playerId, limit)));
+			@PathVariable Long playerId,
+			@RequestParam(defaultValue = "3") int limit,
+			@RequestParam(required = false) Integer year) {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getRecentForm(playerId, limit, year)));
 	}
 
 	@GetMapping("/matches/{matchId}/standings")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "tabla de puntos del partido")
-	@Operation(summary = "Tabla de puntos", description = "Devuelve la tabla de posiciones de los jugadores en el partido finalizado")
+	@Operation(summary = "Tabla de puntos del partido", description = "Devuelve la tabla de posiciones de los jugadores en el partido finalizado")
 	public ResponseEntity<ApiResponse<List<TeamStandingResponse>>> getMatchStandings(@PathVariable Long matchId) {
 		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getMatchStandings(matchId)));
 	}
 
+	@GetMapping("/statistics/standings")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "tabla de puntos por temporada o histórica")
+	@Operation(summary = "Tabla de puntos acumulada", description = "Devuelve la tabla de posiciones acumulada sobre partidos finalizados. Sin year devuelve el histórico de todos los años; con year (ej. 2026) filtra por temporada")
+	public ResponseEntity<ApiResponse<List<TeamStandingResponse>>> getStandings(
+			@RequestParam(required = false) Integer year) {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getStandings(year)));
+	}
+
 	@GetMapping("/statistics/top-scorers")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "máximos goleadores")
-	@Operation(summary = "Máximos goleadores", description = "Devuelve el ranking de goleadores de todos los partidos finalizados")
-	public ResponseEntity<ApiResponse<List<TopScorerResponse>>> getTopScorers() {
-		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getTopScorers()));
+	@Operation(summary = "Máximos goleadores", description = "Devuelve el ranking de goleadores de los partidos finalizados. Sin year devuelve el histórico; con year (ej. 2026) filtra por temporada")
+	public ResponseEntity<ApiResponse<List<TopScorerResponse>>> getTopScorers(
+			@RequestParam(required = false) Integer year) {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getTopScorers(year)));
+	}
+
+	@GetMapping("/statistics/ratings")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "ranking de calificación de pares")
+	@Operation(summary = "Calificación de pares", description = "Devuelve el ranking del promedio de calificaciones recibidas por cada jugador. Sin year devuelve el histórico; con year (ej. 2026) filtra por temporada")
+	public ResponseEntity<ApiResponse<List<RatingAverageResponse>>> getRatingRanking(
+			@RequestParam(required = false) Integer year) {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getRatingRanking(year)));
 	}
 }

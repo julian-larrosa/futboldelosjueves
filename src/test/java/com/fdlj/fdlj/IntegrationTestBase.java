@@ -29,6 +29,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -129,8 +130,12 @@ public abstract class IntegrationTestBase {
 	}
 
 	protected Long createMatch(String adminToken) throws Exception {
+		return createMatch(adminToken, OffsetDateTime.now().plusDays(1));
+	}
+
+	protected Long createMatch(String adminToken, OffsetDateTime fechaHora) throws Exception {
 		String body = objectMapper.writeValueAsString(
-				new MatchRequest(OffsetDateTime.now().plusDays(1), "Cancha " + UUID.randomUUID().toString().substring(0, 4)));
+				new MatchRequest(fechaHora, "Cancha " + UUID.randomUUID().toString().substring(0, 4)));
 		String response = mockMvc.perform(post("/api/matches")
 						.header("Authorization", bearer(adminToken))
 						.contentType(MediaType.APPLICATION_JSON)
@@ -200,7 +205,15 @@ public abstract class IntegrationTestBase {
 	}
 
 	protected Long setupFinishedMatch10(String adminToken) throws Exception {
-		Long matchId = createMatch(adminToken);
+		return setupFinishedMatch(adminToken, OffsetDateTime.now().plusDays(1));
+	}
+
+	protected Long setupFinishedMatchInYear(String adminToken, int year) throws Exception {
+		return setupFinishedMatch(adminToken, OffsetDateTime.of(year, 6, 15, 20, 0, 0, 0, ZoneOffset.UTC));
+	}
+
+	protected Long setupFinishedMatch(String adminToken, OffsetDateTime fechaHora) throws Exception {
+		Long matchId = createMatch(adminToken, fechaHora);
 		openConvocatoria(adminToken, matchId);
 		for (int i = 0; i < 10; i++) {
 			Long playerId = createPlayer("Jugador" + i);
@@ -215,7 +228,15 @@ public abstract class IntegrationTestBase {
 	}
 
 	protected RatingSetup setupFinishedMatchForRating(String adminToken) throws Exception {
-		Long matchId = createMatch(adminToken);
+		return setupFinishedMatchForRating(adminToken, OffsetDateTime.now().plusDays(1));
+	}
+
+	protected RatingSetup setupFinishedMatchForRatingInYear(String adminToken, int year) throws Exception {
+		return setupFinishedMatchForRating(adminToken, OffsetDateTime.of(year, 6, 15, 20, 0, 0, 0, ZoneOffset.UTC));
+	}
+
+	protected RatingSetup setupFinishedMatchForRating(String adminToken, OffsetDateTime fechaHora) throws Exception {
+		Long matchId = createMatch(adminToken, fechaHora);
 		openConvocatoria(adminToken, matchId);
 		PlayerInfo calificador = registerPlayer("Calificador");
 		convocar(adminToken, matchId, calificador.playerId());
