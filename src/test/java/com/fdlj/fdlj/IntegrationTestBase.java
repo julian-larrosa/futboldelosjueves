@@ -1,14 +1,19 @@
 package com.fdlj.fdlj;
 
+import com.fdlj.fdlj.dto.request.AttributeRatingRequest;
+import com.fdlj.fdlj.dto.request.MatchAttributeRatingsRequest;
 import com.fdlj.fdlj.dto.request.MatchRequest;
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.request.MatchStatisticsUpdateRequest;
 import com.fdlj.fdlj.dto.request.ParticipationRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
 import com.fdlj.fdlj.entity.Player;
+import com.fdlj.fdlj.entity.PlayerAttribute;
 import com.fdlj.fdlj.entity.User;
+import com.fdlj.fdlj.entity.enums.AttributeType;
 import com.fdlj.fdlj.entity.enums.PlayerPosition;
 import com.fdlj.fdlj.entity.enums.Role;
+import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.repository.UserRepository;
 import com.fdlj.fdlj.security.JwtService;
@@ -17,6 +22,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -35,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
+@ActiveProfiles("test")
 public abstract class IntegrationTestBase {
 
 	@Autowired
@@ -48,6 +55,9 @@ public abstract class IntegrationTestBase {
 
 	@Autowired
 	protected PlayerRepository playerRepository;
+
+	@Autowired
+	protected PlayerAttributeRepository attributeRepository;
 
 	@Autowired
 	protected PasswordEncoder passwordEncoder;
@@ -105,7 +115,17 @@ public abstract class IntegrationTestBase {
 		player.setPosicion(PlayerPosition.DELANTERO);
 		player.setActivo(true);
 		player.setUser(user);
-		return playerRepository.save(player).getId();
+		Player savedPlayer = playerRepository.save(player);
+
+		for (AttributeType type : AttributeType.values()) {
+			PlayerAttribute attribute = new PlayerAttribute();
+			attribute.setPlayer(savedPlayer);
+			attribute.setAttributeType(type);
+			attribute.setCurrentValue(5.0);
+			attributeRepository.save(attribute);
+		}
+
+		return savedPlayer.getId();
 	}
 
 	protected Long createMatch(String adminToken) throws Exception {
@@ -214,10 +234,10 @@ public abstract class IntegrationTestBase {
 	}
 
 	protected List<Long> convocadosIds(String adminToken, Long matchId) throws Exception {
-		String response = mockMvc.perform(get("/api/matches/" + matchId + "/participations")
+		String response = mockMvc.perform(get("/api/matches/" + matchId + "/participations?page=0&size=100")
 						.header("Authorization", bearer(adminToken)))
 				.andReturn().getResponse().getContentAsString();
-		JsonNode data = objectMapper.readTree(response).at("/data");
+		JsonNode data = objectMapper.readTree(response).at("/data/content");
 		List<Long> ids = new ArrayList<>();
 		for (JsonNode node : data) {
 			ids.add(node.get("playerId").asLong());
@@ -229,5 +249,20 @@ public abstract class IntegrationTestBase {
 		for (Long playerId : convocadosIds(adminToken, matchId)) {
 			updateStats(adminToken, matchId, playerId, 0, 0, true);
 		}
+	}
+
+	protected void submitAttributeRatings(String token, Long matchId, List<AttributeRatingRequest> ratings)
+			throws Exception {
+		String body = objectMapper.writeValueAsString(new MatchAttributeRatingsRequest(ratings));
+		mockMvc.perform(post("/api/matches/" + matchId + "/attribute-ratings")
+						.header("Authorization", bearer(token))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated());
+	}
+
+	protected AttributeRatingRequest buildAttributeRating(Long playerId, int tecnica, int fisico,
+			int definicion, int mentalidad, int pase) {
+		return new AttributeRatingRequest(playerId, tecnica, fisico, definicion, mentalidad, pase);
 	}
 }

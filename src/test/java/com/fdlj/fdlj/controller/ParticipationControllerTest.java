@@ -87,8 +87,8 @@ class ParticipationControllerTest extends IntegrationTestBase {
 						.header("Authorization", bearer(admin)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.length()").value(1))
-				.andExpect(jsonPath("$.data[0].playerId").value(playerId));
+				.andExpect(jsonPath("$.data.content.length()").value(1))
+				.andExpect(jsonPath("$.data.content[0].playerId").value(playerId));
 	}
 
 	@Test
@@ -102,7 +102,7 @@ class ParticipationControllerTest extends IntegrationTestBase {
 						.header("Authorization", bearer(player.token())))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
-				.andExpect(jsonPath("$.data.length()").value(1));
+				.andExpect(jsonPath("$.data.content.length()").value(1));
 	}
 
 	@Test

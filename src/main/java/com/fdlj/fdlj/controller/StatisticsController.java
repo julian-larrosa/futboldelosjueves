@@ -5,6 +5,8 @@ import com.fdlj.fdlj.dto.response.ApiResponse;
 import com.fdlj.fdlj.dto.response.ParticipationResponse;
 import com.fdlj.fdlj.dto.response.PlayerStatisticsResponse;
 import com.fdlj.fdlj.dto.response.RecentFormResponse;
+import com.fdlj.fdlj.dto.response.TeamStandingResponse;
+import com.fdlj.fdlj.dto.response.TopScorerResponse;
 import com.fdlj.fdlj.service.StatisticsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -48,5 +50,19 @@ public class StatisticsController {
 	public ResponseEntity<ApiResponse<RecentFormResponse>> getRecentForm(
 			@PathVariable Long playerId, @RequestParam(defaultValue = "5") int limit) {
 		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getRecentForm(playerId, limit)));
+	}
+
+	@GetMapping("/matches/{matchId}/standings")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "tabla de puntos del partido")
+	@Operation(summary = "Tabla de puntos", description = "Devuelve la tabla de posiciones de los jugadores en el partido finalizado")
+	public ResponseEntity<ApiResponse<List<TeamStandingResponse>>> getMatchStandings(@PathVariable Long matchId) {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getMatchStandings(matchId)));
+	}
+
+	@GetMapping("/statistics/top-scorers")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "máximos goleadores")
+	@Operation(summary = "Máximos goleadores", description = "Devuelve el ranking de goleadores de todos los partidos finalizados")
+	public ResponseEntity<ApiResponse<List<TopScorerResponse>>> getTopScorers() {
+		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getTopScorers()));
 	}
 }

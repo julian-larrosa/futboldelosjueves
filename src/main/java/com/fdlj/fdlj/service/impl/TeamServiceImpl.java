@@ -18,6 +18,7 @@ import com.fdlj.fdlj.repository.RatingRepository;
 import com.fdlj.fdlj.repository.TeamRepository;
 import com.fdlj.fdlj.service.TeamService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TeamServiceImpl implements TeamService {
 
 	private static final int MIN_PLAYERS = 10;
@@ -83,6 +85,7 @@ public class TeamServiceImpl implements TeamService {
 		}
 		participationRepository.saveAll(toSave);
 
+		log.info("Equipos generados para partido id={}: {} jugadores distribuidos en 2 equipos", matchId, selected);
 		return buildTeamResponses(matchId);
 	}
 
@@ -119,6 +122,7 @@ public class TeamServiceImpl implements TeamService {
 		}
 		participation.setTeam(target);
 		participationRepository.save(participation);
+		log.info("Jugador id={} asignado manualmente a {} en partido id={}", playerId, request.teamSide(), matchId);
 		return buildTeamResponses(matchId);
 	}
 

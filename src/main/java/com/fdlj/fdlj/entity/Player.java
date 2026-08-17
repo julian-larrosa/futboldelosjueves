@@ -19,6 +19,9 @@ import lombok.Setter;
 import java.util.HashSet;
 import java.util.Set;
 
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.OrderBy;
+
 @Entity
 @Table(name = "players")
 @Getter
@@ -58,4 +61,8 @@ public class Player {
 
 	@OneToMany(mappedBy = "calificado")
 	private Set<Rating> calificacionesRecibidas = new HashSet<>();
+
+	@OneToMany(mappedBy = "player", cascade = CascadeType.ALL, orphanRemoval = true)
+	@OrderBy("attributeType ASC")
+	private Set<PlayerAttribute> attributes = new HashSet<>();
 }

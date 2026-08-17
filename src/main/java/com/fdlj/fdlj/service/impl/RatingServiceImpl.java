@@ -1,6 +1,7 @@
 package com.fdlj.fdlj.service.impl;
 
 import com.fdlj.fdlj.dto.request.RatingRequest;
+import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.dto.response.RatingResponse;
 import com.fdlj.fdlj.entity.Match;
 import com.fdlj.fdlj.entity.MatchParticipation;
@@ -16,13 +17,15 @@ import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.repository.RatingRepository;
 import com.fdlj.fdlj.service.RatingService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RatingServiceImpl implements RatingService {
 
 	private final MatchRepository matchRepository;
@@ -51,16 +54,17 @@ public class RatingServiceImpl implements RatingService {
 		rating.setCalificador(calificador);
 		rating.setCalificado(calificado);
 		rating.setPuntaje(request.puntaje());
+		log.info("Calificación creada: jugador {} calificó a {} con {} en partido id={}",
+				calificadorId, request.calificadoId(), request.puntaje(), matchId);
 		return ratingMapper.toResponse(ratingRepository.save(rating));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
-	public List<RatingResponse> getRatings(Long matchId) {
+	public PagedResponse<RatingResponse> getRatings(Long matchId, Pageable pageable) {
 		findMatch(matchId);
-		return ratingRepository.findByMatchIdOrderByIdAsc(matchId).stream()
-				.map(ratingMapper::toResponse)
-				.toList();
+		Page<Rating> page = ratingRepository.findByMatchIdOrderByIdAsc(matchId, pageable);
+		return PagedResponse.of(page.map(ratingMapper::toResponse));
 	}
 
 	private Player findEffectiveParticipant(Long matchId, Long playerId) {

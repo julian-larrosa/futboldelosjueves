@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,6 +18,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
 	private static final String BEARER_PREFIX = "Bearer ";
@@ -37,6 +39,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				var authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
 				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 				SecurityContextHolder.getContext().setAuthentication(authentication);
+				log.debug("Token JWT válido para usuario: {} (rol: {})", email, role);
+			} else {
+				log.warn("Token JWT inválido o expirado");
 			}
 		}
 		filterChain.doFilter(request, response);

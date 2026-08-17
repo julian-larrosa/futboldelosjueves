@@ -8,6 +8,7 @@ public record PlayerResponse(
 		String apellido,
 		String email,
 		PlayerPosition posicion,
-		boolean activo
+		boolean activo,
+		PlayerAttributesResponse attributes
 ) {
 }
