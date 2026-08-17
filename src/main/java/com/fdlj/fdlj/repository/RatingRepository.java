@@ -19,4 +19,7 @@ public interface RatingRepository extends JpaRepository<Rating, Long> {
 
 	@Query("SELECT AVG(r.puntaje) FROM Rating r WHERE r.calificado.id = :playerId")
 	Double averageByCalificadoId(@Param("playerId") Long playerId);
+
+	@Query("SELECT r FROM Rating r WHERE (:year IS NULL OR YEAR(r.match.fechaHora) = :year)")
+	List<Rating> findByYear(@Param("year") Integer year);
 }
