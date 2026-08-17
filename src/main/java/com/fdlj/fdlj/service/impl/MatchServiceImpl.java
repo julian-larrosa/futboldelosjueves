@@ -5,10 +5,13 @@ import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.response.MatchResponse;
 import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.entity.Match;
+import com.fdlj.fdlj.entity.MatchParticipation;
 import com.fdlj.fdlj.entity.enums.MatchStatus;
+import com.fdlj.fdlj.entity.enums.TeamSide;
 import com.fdlj.fdlj.exception.InvalidMatchStateException;
 import com.fdlj.fdlj.exception.ResourceNotFoundException;
 import com.fdlj.fdlj.mapper.MatchMapper;
+import com.fdlj.fdlj.repository.MatchParticipationRepository;
 import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.repository.TeamRepository;
 import com.fdlj.fdlj.service.MatchService;
@@ -27,6 +30,7 @@ import java.time.OffsetDateTime;
 public class MatchServiceImpl implements MatchService {
 
 	private final MatchRepository matchRepository;
+	private final MatchParticipationRepository participationRepository;
 	private final TeamRepository teamRepository;
 	private final MatchMapper matchMapper;
 
@@ -113,6 +117,7 @@ public class MatchServiceImpl implements MatchService {
 	public MatchResponse finishMatch(Long id, MatchResultRequest request) {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.EN_CURSO, MatchStatus.FINALIZADO);
+		validateGoalsConsistency(match.getId(), request.golesEquipoA(), request.golesEquipoB());
 		match.setGolesEquipoA(request.golesEquipoA());
 		match.setGolesEquipoB(request.golesEquipoB());
 		log.info("Partido finalizado: id={}, resultado={}-{}", id, request.golesEquipoA(), request.golesEquipoB());
@@ -150,5 +155,20 @@ public class MatchServiceImpl implements MatchService {
 			throw new InvalidMatchStateException("No se puede pasar de " + match.getEstado() + " a " + to);
 		}
 		match.setEstado(to);
+	}
+
+	private void validateGoalsConsistency(Long matchId, int golesA, int golesB) {
+		var participations = participationRepository.findByMatchIdAndJugoEfectivamenteTrue(matchId);
+		int individualGoalsA = participations.stream()
+				.filter(p -> p.getTeam() != null && p.getTeam().getSide() == TeamSide.EQUIPO_A)
+				.mapToInt(MatchParticipation::getGoles).sum();
+		int individualGoalsB = participations.stream()
+				.filter(p -> p.getTeam() != null && p.getTeam().getSide() == TeamSide.EQUIPO_B)
+				.mapToInt(MatchParticipation::getGoles).sum();
+		if (individualGoalsA > golesA || individualGoalsB > golesB) {
+			throw new InvalidMatchStateException(
+					"Los goles individuales registrados (" + individualGoalsA + "-" + individualGoalsB
+							+ ") exceden los goles del partido (" + golesA + "-" + golesB + ")");
+		}
 	}
 }

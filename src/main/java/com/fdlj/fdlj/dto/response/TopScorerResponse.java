@@ -5,7 +5,6 @@ public record TopScorerResponse(
 		String nombre,
 		String apellido,
 		int goles,
-		int asistencias,
 		int partidosJugados
 ) {
 }

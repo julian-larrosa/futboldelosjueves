@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StatisticsServiceImpl implements StatisticsService {
 
-	private static final int DEFAULT_RECENT_LIMIT = 5;
+	private static final int DEFAULT_RECENT_LIMIT = 3;
 
 	private final MatchRepository matchRepository;
 	private final PlayerRepository playerRepository;
@@ -69,7 +69,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 				aggregated.derrotas(),
 				aggregated.empates(),
 				aggregated.goles(),
-				aggregated.asistencias(),
 				ratingPromedio,
 				porcentaje,
 				getRecentForm(playerId, DEFAULT_RECENT_LIMIT)
@@ -94,7 +93,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 				aggregated.derrotas(),
 				aggregated.empates(),
 				aggregated.goles(),
-				aggregated.asistencias(),
 				ratingPromedio,
 				indiceForma
 		);
@@ -179,7 +177,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 			ScorerAccumulator acc = accumulators.computeIfAbsent(playerId,
 					id -> new ScorerAccumulator(p.getPlayer()));
 			acc.goles += p.getGoles();
-			acc.asistencias += p.getAsistencias();
 			acc.partidosJugados++;
 		}
 
@@ -189,11 +186,9 @@ public class StatisticsServiceImpl implements StatisticsService {
 						acc.player.getNombre(),
 						acc.player.getApellido(),
 						acc.goles,
-						acc.asistencias,
 						acc.partidosJugados))
 				.sorted(Comparator
-						.comparingInt(TopScorerResponse::goles).reversed()
-						.thenComparingInt(TopScorerResponse::asistencias).reversed()
+						.comparingInt((TopScorerResponse t) -> -t.goles())
 						.thenComparingInt(TopScorerResponse::partidosJugados))
 				.toList();
 	}
@@ -220,10 +215,8 @@ public class StatisticsServiceImpl implements StatisticsService {
 		int derrotas = 0;
 		int empates = 0;
 		int goles = 0;
-		int asistencias = 0;
 		for (MatchParticipation participation : played) {
 			goles += participation.getGoles();
-			asistencias += participation.getAsistencias();
 			ResultadoPartido resultado = resultFor(participation);
 			TeamSide side = teamSideOf(participation);
 			if (side == null) {
@@ -238,7 +231,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 				derrotas++;
 			}
 		}
-		return new Aggregated(played.size(), victorias, derrotas, empates, goles, asistencias);
+		return new Aggregated(played.size(), victorias, derrotas, empates, goles);
 	}
 
 	private ResultadoPartido resultFor(MatchParticipation participation) {
@@ -268,8 +261,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 			int victorias,
 			int derrotas,
 			int empates,
-			int goles,
-			int asistencias
+			int goles
 	) {
 	}
 
@@ -291,7 +283,6 @@ public class StatisticsServiceImpl implements StatisticsService {
 	private static class ScorerAccumulator {
 		final Player player;
 		int goles = 0;
-		int asistencias = 0;
 		int partidosJugados = 0;
 
 		ScorerAccumulator(Player player) {

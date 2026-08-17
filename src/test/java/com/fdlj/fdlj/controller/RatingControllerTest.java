@@ -137,7 +137,7 @@ class RatingControllerTest extends IntegrationTestBase {
 		for (Long playerId : convocadosIds(admin, matchId)) {
 			boolean efectivo = playerId.equals(calificador.playerId()) ? calificadorEfectivo
 					: playerId.equals(calificado) ? calificadoEfectivo : true;
-			updateStats(admin, matchId, playerId, 0, 0, efectivo);
+			updateStats(admin, matchId, playerId, 0, efectivo);
 		}
 		finishMatch(admin, matchId, 2, 2);
 		return new RatingSetup(matchId, calificador, calificado);

@@ -40,7 +40,6 @@ class StatisticsControllerTest extends IntegrationTestBase {
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.partidosJugados").value(1))
 				.andExpect(jsonPath("$.data.goles").value(0))
-				.andExpect(jsonPath("$.data.asistencias").value(0))
 				.andExpect(jsonPath("$.data.ratingPromedio").isNumber())
 				.andExpect(jsonPath("$.data.rendimientoReciente.partidosJugados").value(1))
 				.andExpect(jsonPath("$.data.rendimientoReciente.indiceForma").isNumber());

@@ -86,7 +86,7 @@ public class ParticipationController {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "estadísticas individuales actualizadas")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "estado inválido")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "partido o convocado no encontrado")
-	@Operation(summary = "Registrar estadísticas individuales", description = "Registra goles, asistencias y participación efectiva de un jugador en el partido")
+	@Operation(summary = "Registrar estadísticas individuales", description = "Registra goles y participación efectiva de un jugador en el partido")
 	public ResponseEntity<ApiResponse<ParticipationResponse>> updateMatchStatistics(
 			@PathVariable Long matchId, @PathVariable Long playerId,
 			@Valid @RequestBody MatchStatisticsUpdateRequest request) {

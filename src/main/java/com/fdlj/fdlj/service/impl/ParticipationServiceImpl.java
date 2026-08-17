@@ -45,7 +45,6 @@ public class ParticipationServiceImpl implements ParticipationService {
 		participation.setMatch(match);
 		participation.setPlayer(player);
 		participation.setGoles(0);
-		participation.setAsistencias(0);
 		log.info("Jugador {} {} convocado al partido id={}", player.getNombre(), player.getApellido(), matchId);
 		return participationMapper.toResponse(participationRepository.save(participation));
 	}

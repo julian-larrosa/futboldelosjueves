@@ -30,7 +30,7 @@ public class StatisticsController {
 
 	@GetMapping("/matches/{matchId}/statistics")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "estadísticas del partido")
-	@Operation(summary = "Estadísticas del partido", description = "Devuelve goles, asistencias y participación efectiva de cada convocado")
+	@Operation(summary = "Estadísticas del partido", description = "Devuelve goles y participación efectiva de cada convocado")
 	public ResponseEntity<ApiResponse<List<ParticipationResponse>>> getMatchStatistics(@PathVariable Long matchId) {
 		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getMatchStatistics(matchId)));
 	}
@@ -48,7 +48,7 @@ public class StatisticsController {
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "jugador no encontrado")
 	@Operation(summary = "Rendimiento reciente", description = "Devuelve el rendimiento de los últimos partidos finalizados del jugador")
 	public ResponseEntity<ApiResponse<RecentFormResponse>> getRecentForm(
-			@PathVariable Long playerId, @RequestParam(defaultValue = "5") int limit) {
+			@PathVariable Long playerId, @RequestParam(defaultValue = "3") int limit) {
 		return ResponseEntity.ok().body(ApiResponse.ok(statisticsService.getRecentForm(playerId, limit)));
 	}
 

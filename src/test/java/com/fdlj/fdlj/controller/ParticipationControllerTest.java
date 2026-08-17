@@ -28,8 +28,7 @@ class ParticipationControllerTest extends IntegrationTestBase {
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.playerId").value(playerId))
-				.andExpect(jsonPath("$.data.goles").value(0))
-				.andExpect(jsonPath("$.data.asistencias").value(0));
+				.andExpect(jsonPath("$.data.goles").value(0));
 	}
 
 	@Test
@@ -152,7 +151,7 @@ class ParticipationControllerTest extends IntegrationTestBase {
 		mockMvc.perform(put("/api/matches/" + matchId + "/participations/" + playerId)
 						.header("Authorization", bearer(admin))
 						.contentType(MediaType.APPLICATION_JSON)
-						.content("{\"goles\":1,\"asistencias\":0,\"jugoEfectivamente\":true}"))
+						.content("{\"goles\":1,\"jugoEfectivamente\":true}"))
 				.andExpect(status().isConflict());
 	}
 }

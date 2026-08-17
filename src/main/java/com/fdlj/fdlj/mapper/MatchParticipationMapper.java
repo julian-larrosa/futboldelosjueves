@@ -17,7 +17,6 @@ public class MatchParticipationMapper {
 				team != null ? team.getId() : null,
 				team != null ? team.getSide() : null,
 				participation.getGoles(),
-				participation.getAsistencias(),
 				participation.getJugoEfectivamente()
 		);
 	}

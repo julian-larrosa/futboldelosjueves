@@ -63,9 +63,8 @@ public class ResultServiceImpl implements ResultService {
 		MatchParticipation participation = participationRepository.findByMatchIdAndPlayerId(matchId, playerId)
 				.orElseThrow(() -> new ResourceNotFoundException("El jugador no está convocado para este partido"));
 		participation.setGoles(request.goles());
-		participation.setAsistencias(request.asistencias());
 		participation.setJugoEfectivamente(request.jugoEfectivamente());
-		log.info("Stats actualizadas: jugador id={} en partido id={}, goles={}, asistencias={}", playerId, matchId, request.goles(), request.asistencias());
+		log.info("Stats actualizadas: jugador id={} en partido id={}, goles={}", playerId, matchId, request.goles());
 		return participationMapper.toResponse(participationRepository.save(participation));
 	}
 

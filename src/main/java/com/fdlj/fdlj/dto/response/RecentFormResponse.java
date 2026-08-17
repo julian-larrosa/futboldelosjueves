@@ -6,7 +6,6 @@ public record RecentFormResponse(
 		int derrotas,
 		int empates,
 		int goles,
-		int asistencias,
 		Double ratingPromedio,
 		Double indiceForma
 ) {

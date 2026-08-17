@@ -34,7 +34,7 @@ public class TeamController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "equipos generados")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "convocatoria no cerrada o jugadores insuficientes")
-	@Operation(summary = "Generar equipos", description = "Genera equipos balanceados (5 vs 5) a partir de los convocados. Regenera si ya existían")
+	@Operation(summary = "Generar equipos", description = "Genera equipos balanceados (diferencia máxima de 1 jugador) a partir de los convocados. Regenera si ya existían")
 	public ResponseEntity<ApiResponse<List<TeamResponse>>> generateTeams(@PathVariable Long matchId) {
 		return ResponseEntity.ok().body(ApiResponse.ok(teamService.generateTeams(matchId)));
 	}
