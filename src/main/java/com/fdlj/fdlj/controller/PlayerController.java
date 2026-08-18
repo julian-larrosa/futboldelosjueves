@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,9 +36,11 @@ public class PlayerController {
 	private final PlayerService playerService;
 
 	@PostMapping
+	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CREATED, description = "jugador creado exitosamente")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.BAD_REQUEST, description = "datos inválidos")
-	@Operation(summary = "Crear jugador", description = "Crea un jugador con nombre, apellido, email y posición")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.FORBIDDEN, description = "solo ADMIN")
+	@Operation(summary = "Crear jugador", description = "Crea un jugador con nombre, apellido, email y posición (solo ADMIN)")
 	public ResponseEntity<ApiResponse<PlayerResponse>> createPlayer(@Valid @RequestBody PlayerRequest request) {
 		PlayerResponse response = playerService.createPlayer(request);
 		return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response));

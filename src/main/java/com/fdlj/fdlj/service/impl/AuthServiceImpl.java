@@ -1,9 +1,11 @@
 package com.fdlj.fdlj.service.impl;
 
 import com.fdlj.fdlj.dto.request.LoginRequest;
+import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
 import com.fdlj.fdlj.dto.response.AuthResponse;
 import com.fdlj.fdlj.dto.response.PlayerResponse;
+import com.fdlj.fdlj.entity.Hincha;
 import com.fdlj.fdlj.entity.Player;
 import com.fdlj.fdlj.entity.PlayerAttribute;
 import com.fdlj.fdlj.entity.User;
@@ -13,6 +15,7 @@ import com.fdlj.fdlj.exception.InvalidCredentialsException;
 import com.fdlj.fdlj.exception.ResourceAlreadyExistsException;
 import com.fdlj.fdlj.mapper.PlayerMapper;
 import com.fdlj.fdlj.mapper.UserMapper;
+import com.fdlj.fdlj.repository.HinchaRepository;
 import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.repository.UserRepository;
@@ -24,6 +27,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -34,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
 	private final UserRepository userRepository;
 	private final PlayerRepository playerRepository;
 	private final PlayerAttributeRepository attributeRepository;
+	private final HinchaRepository hinchaRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
 	private final UserMapper userMapper;
@@ -79,6 +85,33 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
+	@Transactional
+	public AuthResponse registerHincha(RegisterHinchaRequest request) {
+		String email = userMapper.normalizeEmail(request.email());
+		validateHinchaUniqueness(email);
+
+		String username = deriveUsername(email);
+
+		User user = new User();
+		user.setUsername(username);
+		user.setEmail(email);
+		user.setPassword(passwordEncoder.encode(request.password()));
+		user.setRole(Role.HINCHADA);
+		userRepository.save(user);
+
+		Hincha hincha = new Hincha();
+		hincha.setNombre(request.nombre().trim());
+		hincha.setApellido(request.apellido().trim());
+		hincha.setActivo(true);
+		hincha.setUser(user);
+		hinchaRepository.save(hincha);
+
+		log.info("Nuevo hincha registrado: {} {} ({})", request.nombre(), request.apellido(), email);
+		String token = jwtService.generateToken(user);
+		return AuthResponse.of(token, userMapper.toResponse(user), null);
+	}
+
+	@Override
 	@Transactional(readOnly = true)
 	public AuthResponse login(LoginRequest request) {
 		String email = userMapper.normalizeEmail(request.email());
@@ -103,11 +136,31 @@ public class AuthServiceImpl implements AuthService {
 		if (userRepository.existsByUsername(username)) {
 			throw new ResourceAlreadyExistsException("Ya existe un usuario con el username: " + username);
 		}
+		validateEmailUniqueness(email);
+	}
+
+	private void validateHinchaUniqueness(String email) {
+		validateEmailUniqueness(email);
+	}
+
+	private void validateEmailUniqueness(String email) {
 		if (userRepository.existsByEmail(email)) {
 			throw new ResourceAlreadyExistsException("Ya existe un usuario con el email: " + email);
 		}
 		if (playerRepository.existsByEmailAndActivoTrue(email)) {
 			throw new ResourceAlreadyExistsException("Ya existe un jugador con el email: " + email);
 		}
+	}
+
+	private String deriveUsername(String email) {
+		String base = email.substring(0, email.indexOf('@'));
+		if (base.length() > 40) {
+			base = base.substring(0, 40);
+		}
+		String username = base;
+		while (userRepository.existsByUsername(username)) {
+			username = base + "_" + UUID.randomUUID().toString().substring(0, 6);
+		}
+		return username;
 	}
 }

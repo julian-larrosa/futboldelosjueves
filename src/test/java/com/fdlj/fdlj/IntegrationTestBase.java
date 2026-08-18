@@ -1,18 +1,23 @@
 package com.fdlj.fdlj;
 
 import com.fdlj.fdlj.dto.request.AttributeRatingRequest;
+import com.fdlj.fdlj.dto.request.AttendanceRegisterRequest;
 import com.fdlj.fdlj.dto.request.MatchAttributeRatingsRequest;
 import com.fdlj.fdlj.dto.request.MatchRequest;
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.request.MatchStatisticsUpdateRequest;
 import com.fdlj.fdlj.dto.request.ParticipationRequest;
+import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
+import com.fdlj.fdlj.entity.Hincha;
 import com.fdlj.fdlj.entity.Player;
 import com.fdlj.fdlj.entity.PlayerAttribute;
 import com.fdlj.fdlj.entity.User;
 import com.fdlj.fdlj.entity.enums.AttributeType;
 import com.fdlj.fdlj.entity.enums.PlayerPosition;
 import com.fdlj.fdlj.entity.enums.Role;
+import com.fdlj.fdlj.repository.HinchaRepository;
+import com.fdlj.fdlj.repository.MatchAttendanceRepository;
 import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.repository.UserRepository;
@@ -66,7 +71,16 @@ public abstract class IntegrationTestBase {
 	@Autowired
 	protected JwtService jwtService;
 
+	@Autowired
+	protected HinchaRepository hinchaRepository;
+
+	@Autowired
+	protected MatchAttendanceRepository matchAttendanceRepository;
+
 	protected record PlayerInfo(String token, Long playerId) {
+	}
+
+	protected record HinchaInfo(String token, Long hinchaId) {
 	}
 
 	public record RatingSetup(Long matchId, PlayerInfo calificador, Long calificado) {
@@ -99,6 +113,31 @@ public abstract class IntegrationTestBase {
 				.andReturn().getResponse().getContentAsString();
 		JsonNode json = objectMapper.readTree(response);
 		return new PlayerInfo(json.at("/data/token").asText(), json.at("/data/player/id").asLong());
+	}
+
+	protected HinchaInfo registerHincha(String nombre) throws Exception {
+		String email = "hincha" + UUID.randomUUID() + "@example.com";
+		String apellido = "Apellido" + UUID.randomUUID().toString().substring(0, 4);
+		String body = objectMapper.writeValueAsString(
+				new RegisterHinchaRequest(nombre, apellido, email, "password123"));
+		String response = mockMvc.perform(post("/api/auth/register-hincha")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated())
+				.andReturn().getResponse().getContentAsString();
+		JsonNode json = objectMapper.readTree(response);
+		Long userId = json.at("/data/user/id").asLong();
+		Hincha hincha = hinchaRepository.findByUserId(userId).orElseThrow();
+		return new HinchaInfo(json.at("/data/token").asText(), hincha.getId());
+	}
+
+	protected void registerAttendance(String adminToken, Long matchId, Long... hinchaIds) throws Exception {
+		String body = objectMapper.writeValueAsString(new AttendanceRegisterRequest(List.of(hinchaIds)));
+		mockMvc.perform(post("/api/matches/" + matchId + "/attendance")
+						.header("Authorization", bearer(adminToken))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated());
 	}
 
 	protected Long createPlayer(String nombre) {

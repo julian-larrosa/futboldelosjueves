@@ -4,6 +4,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import com.fdlj.fdlj.dto.request.LoginRequest;
+import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
 import com.fdlj.fdlj.entity.enums.PlayerPosition;
 import org.junit.jupiter.api.Test;
@@ -131,6 +132,64 @@ class AuthControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(new LoginRequest("noexiste@example.com", "password123"))))
 				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void registerHincha_success_returnsTokenWithHinchaRole() throws Exception {
+		String email = uniqueEmail();
+		mockMvc.perform(post("/api/auth/register-hincha")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(
+								new RegisterHinchaRequest("María", "Gómez", email, "password123"))))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.token").isNotEmpty())
+				.andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+				.andExpect(jsonPath("$.data.user.email").value(email))
+				.andExpect(jsonPath("$.data.user.role").value("HINCHADA"))
+				.andExpect(jsonPath("$.data.player").isEmpty());
+	}
+
+	@Test
+	void registerHincha_duplicateEmail_returns409() throws Exception {
+		String email = uniqueEmail();
+		String body = objectMapper.writeValueAsString(
+				new RegisterHinchaRequest("María", "Gómez", email, "password123"));
+		mockMvc.perform(post("/api/auth/register-hincha")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(post("/api/auth/register-hincha")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void registerHincha_invalidPayload_returns400() throws Exception {
+		mockMvc.perform(post("/api/auth/register-hincha")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"nombre\":\"\",\"apellido\":\"\",\"email\":\"mal\",\"password\":\"123\"}"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void login_hincha_returnsToken() throws Exception {
+		String email = uniqueEmail();
+		mockMvc.perform(post("/api/auth/register-hincha")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(
+								new RegisterHinchaRequest("Carlos", "López", email, "password123"))))
+				.andExpect(status().isCreated());
+
+		mockMvc.perform(post("/api/auth/login")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.token").isNotEmpty())
+				.andExpect(jsonPath("$.data.user.role").value("HINCHADA"))
+				.andExpect(jsonPath("$.data.player").isEmpty());
 	}
 
 	@Test
