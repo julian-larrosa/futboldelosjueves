@@ -58,17 +58,20 @@ public class AuthServiceImpl implements AuthService {
 		user.setPassword(passwordEncoder.encode(request.password()));
 		user.setRole(Role.PLAYER);
 
+		User savedUser = userRepository.saveAndFlush(user);
+		if (playerRepository.existsByUserId(savedUser.getId())) {
+			throw new ResourceAlreadyExistsException("Ya existe un perfil de jugador para este usuario");
+		}
+
 		Player player = new Player();
 		player.setNombre(request.nombre().trim());
 		player.setApellido(request.apellido().trim());
 		player.setEmail(email);
 		player.setPosicion(request.posicion());
 		player.setActivo(true);
-		player.setUser(user);
+		player.setUser(savedUser);
 
-		user.setPlayer(player);
-
-		userRepository.save(user);
+		savedUser.setPlayer(player);
 		playerRepository.save(player);
 
 		for (AttributeType type : AttributeType.values()) {
@@ -98,6 +101,10 @@ public class AuthServiceImpl implements AuthService {
 		user.setPassword(passwordEncoder.encode(request.password()));
 		user.setRole(Role.HINCHADA);
 		userRepository.save(user);
+
+		if (hinchaRepository.existsByUserId(user.getId())) {
+			throw new ResourceAlreadyExistsException("Ya existe un perfil de hincha para este usuario");
+		}
 
 		Hincha hincha = new Hincha();
 		hincha.setNombre(request.nombre().trim());

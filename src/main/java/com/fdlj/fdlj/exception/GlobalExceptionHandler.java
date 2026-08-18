@@ -2,6 +2,7 @@ package com.fdlj.fdlj.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -58,5 +59,13 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(HttpStatus.CONFLICT)
 				.body(ErrorResponse.of(HttpStatus.CONFLICT,
 						"Conflicto de datos: el email ya está en uso o se violó una restricción de la base de datos."));
+	}
+
+	@ExceptionHandler(OptimisticLockingFailureException.class)
+	public ResponseEntity<ErrorResponse> handleOptimisticLocking(OptimisticLockingFailureException ex) {
+		log.warn("Conflicto de concurrencia: {}", ex.getMessage());
+		return ResponseEntity.status(HttpStatus.CONFLICT)
+				.body(ErrorResponse.of(HttpStatus.CONFLICT,
+						"El recurso fue modificado por otro usuario. Reintentá con la versión actualizada."));
 	}
 }

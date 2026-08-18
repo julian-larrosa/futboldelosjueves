@@ -23,6 +23,8 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
 
 	boolean existsByEmailAndActivoTrueAndIdNot(String email, Long id);
 
+	boolean existsByUserId(Long userId);
+
 	@Query("SELECT p FROM Player p WHERE p.activo = true " +
 			"AND (:nombre IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :nombre, '%'))) " +
 			"AND (:apellido IS NULL OR LOWER(p.apellido) LIKE LOWER(CONCAT('%', :apellido, '%'))) " +

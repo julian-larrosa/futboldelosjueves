@@ -39,7 +39,7 @@ public class Player {
 	@Column(name = "apellido", nullable = false, length = 100)
 	private String apellido;
 
-	@Column(name = "email", nullable = false, unique = true, length = 100)
+	@Column(name = "email", nullable = false, length = 100)
 	private String email;
 
 	@Enumerated(EnumType.STRING)

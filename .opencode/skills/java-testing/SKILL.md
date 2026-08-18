@@ -10,9 +10,14 @@ metadata:
 
 ## Contexto
 - Todos los tests son integration tests: `@SpringBootTest @AutoConfigureMockMvc @Transactional @ActiveProfiles("test")`.
-- Corren contra PostgreSQL dedicada `fdlj_test` (localhost:5432, user/pass fdlj/fdlj, `ddl-auto=create-drop`).
+- Corren contra PostgreSQL dedicada `fdlj_test` (localhost:5432, user/pass fdlj/fdlj).
+- El schema lo gestiona Flyway (V1-V4 en `src/main/resources/db/migration`); Hibernate corre con `ddl-auto=none` y `clean-on-validation-error=true`.
 - Levantar Postgres antes: `docker compose up -d`.
 - JSON: Jackson 3 -> `tools.jackson.databind.json.JsonMapper` y `JsonNode`.
+
+## Performance / query counts
+- Hay un `QueryCountTest` que verifica que los endpoints de estadísticas no hagan N+1 (JOIN FETCH / bulk).
+- Cuando toques un endpoint de estadísticas/rankings: actualizar las cotas del `QueryCountTest` solo si el comportamiento lo justifica.
 
 ## Correr la suite
 - Windows: `.\mvnw.cmd test` (equivalente: `mvn test`).

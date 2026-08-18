@@ -9,9 +9,10 @@ import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -29,9 +30,17 @@ public class PlayerMapper {
 	}
 
 	public PlayerResponse toResponse(Player player) {
+		Map<Long, List<PlayerAttribute>> attributesByPlayer = player.getId() == null
+				? Map.of()
+				: playerAttributeRepository.findByPlayerIdIn(List.of(player.getId())).stream()
+						.collect(Collectors.groupingBy(a -> a.getPlayer().getId()));
+		return toResponse(player, attributesByPlayer);
+	}
+
+	public PlayerResponse toResponse(Player player, Map<Long, List<PlayerAttribute>> attributesByPlayer) {
 		PlayerAttributesResponse attributesResponse = null;
 		if (player.getId() != null) {
-			List<PlayerAttribute> attrs = playerAttributeRepository.findByPlayerId(player.getId());
+			List<PlayerAttribute> attrs = attributesByPlayer.getOrDefault(player.getId(), List.of());
 			if (!attrs.isEmpty()) {
 				List<com.fdlj.fdlj.dto.response.PlayerAttributeResponse> attrList = attrs.stream()
 						.map(a -> new com.fdlj.fdlj.dto.response.PlayerAttributeResponse(
