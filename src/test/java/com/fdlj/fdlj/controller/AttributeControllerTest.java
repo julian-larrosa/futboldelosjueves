@@ -251,6 +251,76 @@ class AttributeControllerTest extends IntegrationTestBase {
 				.andExpect(jsonPath("$.data.history.length()").value(5));
 	}
 
+	@Test
+	void getPlayerAttributes_singleMatch_returnsExactRatingValues() throws Exception {
+		String admin = adminToken();
+		RatingSetup setup = setupFinishedMatchForRating(admin);
+
+		AttributeRatingRequest rating = buildAttributeRating(setup.calificado(), 9, 8, 9, 8, 9);
+		submitAttributeRatings(admin, setup.matchId(), List.of(rating));
+
+		mockMvc.perform(get("/api/players/" + setup.calificado() + "/attributes")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'TECNICA')].currentValue").value(9.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'FISICO')].currentValue").value(8.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'DEFINICION')].currentValue").value(9.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'MENTALIDAD')].currentValue").value(8.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'PASE')].currentValue").value(9.0));
+	}
+
+	@Test
+	void getPlayerAttributes_multipleMatches_returnsHistoricalAveragePerAttribute() throws Exception {
+		String admin = adminToken();
+		Long calificado = createPlayer("Promedio");
+		Long firstMatch = createFinishedMatchWithPlayer(admin, calificado);
+		submitAttributeRatings(admin, firstMatch,
+				List.of(buildAttributeRating(calificado, 9, 8, 9, 8, 9)));
+
+		Long secondMatch = createFinishedMatchWithPlayer(admin, calificado);
+		submitAttributeRatings(admin, secondMatch,
+				List.of(buildAttributeRating(calificado, 7, 8, 8, 9, 7)));
+
+		mockMvc.perform(get("/api/players/" + calificado + "/attributes")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'TECNICA')].currentValue").value(8.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'FISICO')].currentValue").value(8.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'DEFINICION')].currentValue").value(8.5))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'MENTALIDAD')].currentValue").value(8.5))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'PASE')].currentValue").value(8.0));
+	}
+
+	@Test
+	void getPlayerAttributes_withoutHistory_returnsDefaultValues() throws Exception {
+		PlayerInfo player = registerPlayer("JugadorSinHistorial");
+		mockMvc.perform(get("/api/players/" + player.playerId() + "/attributes")
+						.header("Authorization", bearer(player.token())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.attributes").isArray())
+				.andExpect(jsonPath("$.data.attributes.length()").value(5))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'TECNICA')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'FISICO')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'DEFINICION')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'MENTALIDAD')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'PASE')].currentValue").value(5.0));
+	}
+
+	private Long createFinishedMatchWithPlayer(String adminToken, Long playerId) throws Exception {
+		Long matchId = createMatch(adminToken);
+		openConvocatoria(adminToken, matchId);
+		convocar(adminToken, matchId, playerId);
+		for (int i = 0; i < 9; i++) {
+			convocar(adminToken, matchId, createPlayer("OtroProm" + i));
+		}
+		closeConvocatoria(adminToken, matchId);
+		generateTeams(adminToken, matchId);
+		startMatch(adminToken, matchId);
+		marcarEfectivos(adminToken, matchId);
+		finishMatch(adminToken, matchId, 2, 2);
+		return matchId;
+	}
+
 	private void marcarEfectivos(String adminToken, Long matchId) throws Exception {
 		for (Long playerId : convocadosIds(adminToken, matchId)) {
 			updateStats(adminToken, matchId, playerId, 0, true);

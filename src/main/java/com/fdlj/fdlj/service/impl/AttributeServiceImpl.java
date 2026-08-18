@@ -27,7 +27,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -46,7 +48,18 @@ public class AttributeServiceImpl implements AttributeService {
 	public PlayerAttributesResponse getPlayerAttributes(Long playerId) {
 		Player player = findActivePlayer(playerId);
 		List<PlayerAttribute> attributes = attributeRepository.findByPlayerId(playerId);
-		return attributeMapper.toAttributesResponse(player, attributes);
+		Map<AttributeType, Double> historicalAverages = findHistoricalAverages(playerId);
+		return attributeMapper.toAttributesResponse(player, attributes, historicalAverages);
+	}
+
+	private Map<AttributeType, Double> findHistoricalAverages(Long playerId) {
+		Map<AttributeType, Double> averages = new LinkedHashMap<>();
+		for (Object[] row : historyRepository.findAverageRatingByPlayerIdGroupByAttributeType(playerId)) {
+			AttributeType type = (AttributeType) row[0];
+			Double average = ((Number) row[1]).doubleValue();
+			averages.put(type, Math.round(average * 100.0) / 100.0);
+		}
+		return averages;
 	}
 
 	@Override
