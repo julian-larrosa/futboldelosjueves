@@ -42,6 +42,7 @@ public class MatchController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CREATED, description = "partido creado exitosamente")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.BAD_REQUEST, description = "datos inválidos")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "la fecha del partido debe ser futura")
 	@Operation(summary = "Crear partido", description = "Crea una jornada con fecha, hora y lugar")
 	public ResponseEntity<ApiResponse<MatchResponse>> createMatch(@Valid @RequestBody MatchRequest request) {
 		return ResponseEntity.status(HttpStatus.CREATED)
@@ -86,7 +87,7 @@ public class MatchController {
 	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "partido actualizado")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "partido no encontrado")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "estado no permite la modificación")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "estado no permite la modificación o la nueva fecha debe ser futura")
 	@Operation(summary = "Actualizar partido", description = "Actualiza fecha, hora y lugar de un partido programado o con convocatoria abierta")
 	public ResponseEntity<ApiResponse<MatchResponse>> updateMatch(@PathVariable Long id, @Valid @RequestBody MatchRequest request) {
 		return ResponseEntity.ok().body(ApiResponse.ok(matchService.updateMatch(id, request)));

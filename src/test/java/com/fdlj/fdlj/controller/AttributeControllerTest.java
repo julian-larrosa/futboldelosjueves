@@ -3,7 +3,10 @@ package com.fdlj.fdlj.controller;
 import com.fdlj.fdlj.IntegrationTestBase;
 import com.fdlj.fdlj.dto.request.AttributeRatingRequest;
 import com.fdlj.fdlj.dto.request.MatchAttributeRatingsRequest;
+import com.fdlj.fdlj.entity.enums.AttributeType;
+import com.fdlj.fdlj.repository.PlayerAttributeHistoryRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 
 import java.util.List;
@@ -14,6 +17,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class AttributeControllerTest extends IntegrationTestBase {
+
+	@Autowired
+	protected PlayerAttributeHistoryRepository historyRepository;
 
 	@Test
 	void getPlayerAttributes_newPlayer_returns5DefaultAttributes() throws Exception {
@@ -304,6 +310,42 @@ class AttributeControllerTest extends IntegrationTestBase {
 				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'DEFINICION')].currentValue").value(5.0))
 				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'MENTALIDAD')].currentValue").value(5.0))
 				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'PASE')].currentValue").value(5.0));
+	}
+
+	@Test
+	void getPlayerAttributes_sinFilasDevuelveLos5Con50() throws Exception {
+		PlayerInfo player = registerPlayer("JugadorSinFilas");
+		attributeRepository.deleteAll(attributeRepository.findByPlayerId(player.playerId()));
+
+		mockMvc.perform(get("/api/players/" + player.playerId() + "/attributes")
+						.header("Authorization", bearer(player.token())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.attributes").isArray())
+				.andExpect(jsonPath("$.data.attributes.length()").value(5))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'TECNICA')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'FISICO')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'DEFINICION')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'MENTALIDAD')].currentValue").value(5.0))
+				.andExpect(jsonPath("$.data.attributes[?(@.attributeType == 'PASE')].currentValue").value(5.0));
+	}
+
+	@Test
+	void submitAttributeRatings_duplicateWithOnlyOtherTypeHistory_returns409() throws Exception {
+		String admin = adminToken();
+		RatingSetup setup = setupFinishedMatchForRating(admin);
+		submitAttributeRatings(admin, setup.matchId(),
+				List.of(buildAttributeRating(setup.calificado(), 8, 7, 9, 6, 8)));
+
+		historyRepository.findByPlayerIdAndAttributeTypeAndMatchId(
+						setup.calificado(), AttributeType.TECNICA, setup.matchId())
+				.ifPresent(historyRepository::delete);
+
+		AttributeRatingRequest again = buildAttributeRating(setup.calificado(), 9, 8, 8, 7, 9);
+		mockMvc.perform(post("/api/matches/" + setup.matchId() + "/attribute-ratings")
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(objectMapper.writeValueAsString(new MatchAttributeRatingsRequest(List.of(again)))))
+				.andExpect(status().isConflict());
 	}
 
 	private Long createFinishedMatchWithPlayer(String adminToken, Long playerId) throws Exception {

@@ -255,7 +255,7 @@ class StatisticsByYearControllerTest extends IntegrationTestBase {
 	}
 
 	private Long setupMatchWithScorer(String adminToken, int year, Long scorerId, int scorerGoals) throws Exception {
-		Long matchId = createMatch(adminToken, dateInYear(year));
+		Long matchId = createMatchOrSeed(adminToken, dateInYear(year));
 		openConvocatoria(adminToken, matchId);
 		convocar(adminToken, matchId, scorerId);
 		for (int i = 0; i < 9; i++) {
@@ -274,7 +274,7 @@ class StatisticsByYearControllerTest extends IntegrationTestBase {
 
 	private Long setupMatchWithParticipants(String adminToken, int year, Long participant1, Long participant2)
 			throws Exception {
-		Long matchId = createMatch(adminToken, dateInYear(year));
+		Long matchId = createMatchOrSeed(adminToken, dateInYear(year));
 		openConvocatoria(adminToken, matchId);
 		convocar(adminToken, matchId, participant1);
 		convocar(adminToken, matchId, participant2);

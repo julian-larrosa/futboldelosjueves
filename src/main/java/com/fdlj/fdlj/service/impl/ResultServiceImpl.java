@@ -28,6 +28,7 @@ public class ResultServiceImpl implements ResultService {
 	private final MatchParticipationRepository participationRepository;
 	private final MatchMapper matchMapper;
 	private final MatchParticipationMapper participationMapper;
+	private final GoalsConsistencyValidator goalsConsistencyValidator;
 
 	@Override
 	@Transactional(readOnly = true)
@@ -46,6 +47,7 @@ public class ResultServiceImpl implements ResultService {
 		if (match.getEstado() != MatchStatus.FINALIZADO) {
 			throw new InvalidMatchStateException("El resultado solo puede corregirse en un partido finalizado");
 		}
+		goalsConsistencyValidator.validateGoals(matchId, request.golesEquipoA(), request.golesEquipoB());
 		match.setGolesEquipoA(request.golesEquipoA());
 		match.setGolesEquipoB(request.golesEquipoB());
 		log.info("Resultado corregido en partido id={}: {}-{}", matchId, request.golesEquipoA(), request.golesEquipoB());

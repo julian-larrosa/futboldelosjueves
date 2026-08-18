@@ -10,6 +10,7 @@ import com.fdlj.fdlj.dto.request.ParticipationRequest;
 import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
 import com.fdlj.fdlj.entity.Hincha;
+import com.fdlj.fdlj.entity.Match;
 import com.fdlj.fdlj.entity.Player;
 import com.fdlj.fdlj.entity.PlayerAttribute;
 import com.fdlj.fdlj.entity.User;
@@ -18,6 +19,7 @@ import com.fdlj.fdlj.entity.enums.PlayerPosition;
 import com.fdlj.fdlj.entity.enums.Role;
 import com.fdlj.fdlj.repository.HinchaRepository;
 import com.fdlj.fdlj.repository.MatchAttendanceRepository;
+import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.repository.UserRepository;
@@ -76,6 +78,9 @@ public abstract class IntegrationTestBase {
 
 	@Autowired
 	protected MatchAttendanceRepository matchAttendanceRepository;
+
+	@Autowired
+	protected MatchRepository matchRepository;
 
 	protected record PlayerInfo(String token, Long playerId) {
 	}
@@ -184,6 +189,16 @@ public abstract class IntegrationTestBase {
 		return objectMapper.readTree(response).at("/data/id").asLong();
 	}
 
+	protected Long createMatchOrSeed(String adminToken, OffsetDateTime fechaHora) throws Exception {
+		if (fechaHora.isAfter(OffsetDateTime.now())) {
+			return createMatch(adminToken, fechaHora);
+		}
+		Match match = new Match();
+		match.setLugar("Cancha " + UUID.randomUUID().toString().substring(0, 4));
+		match.setFechaHora(fechaHora);
+		return matchRepository.save(match).getId();
+	}
+
 	protected void openConvocatoria(String token, Long matchId) throws Exception {
 		mockMvc.perform(post("/api/matches/" + matchId + "/convocatoria/abrir")
 						.header("Authorization", bearer(token)))
@@ -252,7 +267,7 @@ public abstract class IntegrationTestBase {
 	}
 
 	protected Long setupFinishedMatch(String adminToken, OffsetDateTime fechaHora) throws Exception {
-		Long matchId = createMatch(adminToken, fechaHora);
+		Long matchId = createMatchOrSeed(adminToken, fechaHora);
 		openConvocatoria(adminToken, matchId);
 		for (int i = 0; i < 10; i++) {
 			Long playerId = createPlayer("Jugador" + i);
@@ -275,7 +290,7 @@ public abstract class IntegrationTestBase {
 	}
 
 	protected RatingSetup setupFinishedMatchForRating(String adminToken, OffsetDateTime fechaHora) throws Exception {
-		Long matchId = createMatch(adminToken, fechaHora);
+		Long matchId = createMatchOrSeed(adminToken, fechaHora);
 		openConvocatoria(adminToken, matchId);
 		PlayerInfo calificador = registerPlayer("Calificador");
 		convocar(adminToken, matchId, calificador.playerId());

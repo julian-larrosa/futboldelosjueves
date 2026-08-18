@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,8 +84,10 @@ public class AttributeServiceImpl implements AttributeService {
 		for (AttributeRatingRequest rating : request.ratings()) {
 			Player calificado = findEffectiveParticipant(matchId, rating.playerId());
 
-			if (historyRepository.findByPlayerIdAndAttributeTypeAndMatchId(
-					calificado.getId(), AttributeType.TECNICA, matchId).isPresent()) {
+			boolean yaCalificado = Arrays.stream(AttributeType.values())
+					.anyMatch(type -> historyRepository.findByPlayerIdAndAttributeTypeAndMatchId(
+							calificado.getId(), type, matchId).isPresent());
+			if (yaCalificado) {
 				throw new InvalidMatchStateException(
 						"El jugador con id " + rating.playerId() + " ya fue calificado en este partido");
 			}

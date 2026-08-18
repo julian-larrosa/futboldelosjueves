@@ -4,6 +4,7 @@ import com.fdlj.fdlj.IntegrationTestBase;
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import tools.jackson.databind.JsonNode;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -81,6 +82,41 @@ class ResultControllerTest extends IntegrationTestBase {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void updateResult_golesIndividualesExcedenResultado_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = setupFinishedMatch10(admin);
+
+		Long playerEquipoA = playerIdOnSide(admin, matchId, "EQUIPO_A");
+		updateStats(admin, matchId, playerEquipoA, 5, true);
+
+		String body = objectMapper.writeValueAsString(new MatchResultRequest(1, 1));
+		mockMvc.perform(put("/api/matches/" + matchId + "/result")
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isConflict());
+
+		mockMvc.perform(get("/api/matches/" + matchId + "/result")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.golesEquipoA").value(3))
+				.andExpect(jsonPath("$.data.golesEquipoB").value(1));
+	}
+
+	private Long playerIdOnSide(String admin, Long matchId, String side) throws Exception {
+		String response = mockMvc.perform(get("/api/matches/" + matchId + "/participations?page=0&size=100")
+						.header("Authorization", bearer(admin)))
+				.andReturn().getResponse().getContentAsString();
+		JsonNode data = objectMapper.readTree(response).at("/data/content");
+		for (JsonNode node : data) {
+			if (side.equals(node.path("teamSide").asText())) {
+				return node.get("playerId").asLong();
+			}
+		}
+		throw new AssertionError("No se encontró jugador en " + side);
 	}
 
 	@Test

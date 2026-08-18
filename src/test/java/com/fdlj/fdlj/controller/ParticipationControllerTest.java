@@ -46,6 +46,22 @@ class ParticipationControllerTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void addPlayer_convocatoriaLlena_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatch(admin);
+		openConvocatoria(admin, matchId);
+		for (int i = 0; i < 20; i++) {
+			convocar(admin, matchId, createPlayer("Lleno" + i));
+		}
+		Long playerId = createPlayer("Excedente");
+		mockMvc.perform(post("/api/matches/" + matchId + "/participations")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"playerId\":" + playerId + "}")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
 	void convocarPlayer_afterCerrada_returns409() throws Exception {
 		String admin = adminToken();
 		Long matchId = createMatch(admin);
