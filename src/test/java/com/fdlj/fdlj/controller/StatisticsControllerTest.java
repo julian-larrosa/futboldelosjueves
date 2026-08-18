@@ -30,6 +30,15 @@ class StatisticsControllerTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void getMatchStatistics_notFinished_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatch(admin);
+		mockMvc.perform(get("/api/matches/" + matchId + "/statistics")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
 	void getPlayerStatistics_returns200() throws Exception {
 		String admin = adminToken();
 		Long matchId = setupFinishedMatch10(admin);
@@ -71,6 +80,15 @@ class StatisticsControllerTest extends IntegrationTestBase {
 				.andExpect(jsonPath("$.data.length()").value(10))
 				.andExpect(jsonPath("$.data[0].puntos").isNumber())
 				.andExpect(jsonPath("$.data[0].diferenciaGoles").isNumber());
+	}
+
+	@Test
+	void getMatchStandings_notFinished_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatch(admin);
+		mockMvc.perform(get("/api/matches/" + matchId + "/standings")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isConflict());
 	}
 
 	@Test

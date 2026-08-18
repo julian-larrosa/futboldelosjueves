@@ -37,7 +37,7 @@ public class ResultController {
 	@PutMapping
 	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "resultado corregido")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "el partido no está finalizado")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "el partido no está finalizado o los goles individuales exceden el resultado")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.BAD_REQUEST, description = "datos inválidos")
 	@Operation(summary = "Corregir resultado", description = "Corrige los goles de un partido finalizado")
 	public ResponseEntity<ApiResponse<MatchResultResponse>> updateResult(

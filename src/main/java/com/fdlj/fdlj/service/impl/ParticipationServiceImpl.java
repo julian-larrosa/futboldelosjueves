@@ -17,6 +17,7 @@ import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.service.ParticipationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class ParticipationServiceImpl implements ParticipationService {
+
+	@Value("${app.match.max-convocados:20}")
+	private int maxConvocados;
 
 	private final MatchRepository matchRepository;
 	private final MatchParticipationRepository participationRepository;
@@ -40,6 +44,10 @@ public class ParticipationServiceImpl implements ParticipationService {
 		Player player = findActivePlayer(request.playerId());
 		if (participationRepository.existsByMatchIdAndPlayerId(matchId, player.getId())) {
 			throw new ResourceAlreadyExistsException("El jugador ya está convocado para este partido");
+		}
+		if (participationRepository.countByMatchId(matchId) >= maxConvocados) {
+			throw new InvalidMatchStateException(
+					"La convocatoria alcanzó el máximo de " + maxConvocados + " jugadores");
 		}
 		MatchParticipation participation = new MatchParticipation();
 		participation.setMatch(match);

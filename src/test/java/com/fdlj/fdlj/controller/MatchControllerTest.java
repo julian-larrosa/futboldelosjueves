@@ -40,6 +40,18 @@ class MatchControllerTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void createMatch_fechaPasada_returns409() throws Exception {
+		String admin = adminToken();
+		String body = objectMapper.writeValueAsString(
+				new MatchRequest(OffsetDateTime.now().minusDays(1), "Cancha"));
+		mockMvc.perform(post("/api/matches")
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
 	void createMatch_asPlayer_returns403() throws Exception {
 		PlayerInfo player = registerPlayer("Jugador");
 		mockMvc.perform(post("/api/matches")
@@ -93,6 +105,35 @@ class MatchControllerTest extends IntegrationTestBase {
 						.content(objectMapper.writeValueAsString(
 								new MatchRequest(OffsetDateTime.now().plusDays(2), "Otra Cancha"))))
 				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void updateMatch_noPermiteMoverPartidoProximoAlPasado_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatch(admin);
+		openConvocatoria(admin, matchId);
+		String body = objectMapper.writeValueAsString(
+				new MatchRequest(OffsetDateTime.now().minusDays(1), "Otra Cancha"));
+		mockMvc.perform(put("/api/matches/" + matchId)
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void updateMatch_partidoConFechaPasadaSePuedeEditar_returns200() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatchOrSeed(admin, OffsetDateTime.now().minusDays(5));
+		openConvocatoria(admin, matchId);
+		String body = objectMapper.writeValueAsString(
+				new MatchRequest(OffsetDateTime.now().minusDays(3), "Cancha Editada"));
+		mockMvc.perform(put("/api/matches/" + matchId)
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.lugar").value("Cancha Editada"));
 	}
 
 	@Test

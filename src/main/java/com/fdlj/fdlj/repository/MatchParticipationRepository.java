@@ -23,6 +23,8 @@ public interface MatchParticipationRepository extends JpaRepository<MatchPartici
 
 	boolean existsByMatchIdAndPlayerId(Long matchId, Long playerId);
 
+	long countByMatchId(Long matchId);
+
 	List<MatchParticipation> findByPlayerIdAndMatchEstadoAndJugoEfectivamenteTrueOrderByMatchFechaHoraDesc(
 			Long playerId, MatchStatus estado);
 

@@ -5,9 +5,7 @@ import com.fdlj.fdlj.dto.request.MatchResultRequest;
 import com.fdlj.fdlj.dto.response.MatchResponse;
 import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.entity.Match;
-import com.fdlj.fdlj.entity.MatchParticipation;
 import com.fdlj.fdlj.entity.enums.MatchStatus;
-import com.fdlj.fdlj.entity.enums.TeamSide;
 import com.fdlj.fdlj.exception.InvalidMatchStateException;
 import com.fdlj.fdlj.exception.ResourceNotFoundException;
 import com.fdlj.fdlj.mapper.MatchMapper;
@@ -33,10 +31,12 @@ public class MatchServiceImpl implements MatchService {
 	private final MatchParticipationRepository participationRepository;
 	private final TeamRepository teamRepository;
 	private final MatchMapper matchMapper;
+	private final GoalsConsistencyValidator goalsConsistencyValidator;
 
 	@Override
 	@Transactional
 	public MatchResponse createMatch(MatchRequest request) {
+		validateFutureDate(request.fechaHora());
 		MatchResponse response = matchMapper.toResponse(matchRepository.save(matchMapper.toEntity(request)));
 		log.info("Partido creado: id={}, lugar={}", response.id(), response.lugar());
 		return response;
@@ -67,6 +67,9 @@ public class MatchServiceImpl implements MatchService {
 	public MatchResponse updateMatch(Long id, MatchRequest request) {
 		Match match = findMatch(id);
 		ensureState(match, MatchStatus.PROGRAMADO, MatchStatus.CONVOCATORIA_ABIERTA);
+		if (match.getFechaHora().isAfter(OffsetDateTime.now()) && request.fechaHora().isBefore(OffsetDateTime.now())) {
+			throw new InvalidMatchStateException("La nueva fecha del partido debe ser futura");
+		}
 		match.setFechaHora(request.fechaHora());
 		match.setLugar(matchMapper.normalizeLugar(request.lugar()));
 		return matchMapper.toResponse(matchRepository.save(match));
@@ -117,7 +120,7 @@ public class MatchServiceImpl implements MatchService {
 	public MatchResponse finishMatch(Long id, MatchResultRequest request) {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.EN_CURSO, MatchStatus.FINALIZADO);
-		validateGoalsConsistency(match.getId(), request.golesEquipoA(), request.golesEquipoB());
+		goalsConsistencyValidator.validateGoals(match.getId(), request.golesEquipoA(), request.golesEquipoB());
 		match.setGolesEquipoA(request.golesEquipoA());
 		match.setGolesEquipoB(request.golesEquipoB());
 		log.info("Partido finalizado: id={}, resultado={}-{}", id, request.golesEquipoA(), request.golesEquipoB());
@@ -157,18 +160,9 @@ public class MatchServiceImpl implements MatchService {
 		match.setEstado(to);
 	}
 
-	private void validateGoalsConsistency(Long matchId, int golesA, int golesB) {
-		var participations = participationRepository.findByMatchIdAndJugoEfectivamenteTrue(matchId);
-		int individualGoalsA = participations.stream()
-				.filter(p -> p.getTeam() != null && p.getTeam().getSide() == TeamSide.EQUIPO_A)
-				.mapToInt(MatchParticipation::getGoles).sum();
-		int individualGoalsB = participations.stream()
-				.filter(p -> p.getTeam() != null && p.getTeam().getSide() == TeamSide.EQUIPO_B)
-				.mapToInt(MatchParticipation::getGoles).sum();
-		if (individualGoalsA > golesA || individualGoalsB > golesB) {
-			throw new InvalidMatchStateException(
-					"Los goles individuales registrados (" + individualGoalsA + "-" + individualGoalsB
-							+ ") exceden los goles del partido (" + golesA + "-" + golesB + ")");
+	private void validateFutureDate(OffsetDateTime fechaHora) {
+		if (fechaHora.isBefore(OffsetDateTime.now())) {
+			throw new InvalidMatchStateException("La fecha del partido debe ser futura");
 		}
 	}
 }

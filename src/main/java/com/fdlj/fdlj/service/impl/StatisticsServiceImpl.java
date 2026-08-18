@@ -6,6 +6,7 @@ import com.fdlj.fdlj.dto.response.RatingAverageResponse;
 import com.fdlj.fdlj.dto.response.RecentFormResponse;
 import com.fdlj.fdlj.dto.response.TeamStandingResponse;
 import com.fdlj.fdlj.dto.response.TopScorerResponse;
+import com.fdlj.fdlj.entity.Match;
 import com.fdlj.fdlj.entity.MatchParticipation;
 import com.fdlj.fdlj.entity.Player;
 import com.fdlj.fdlj.entity.PlayerAttribute;
@@ -14,6 +15,7 @@ import com.fdlj.fdlj.entity.Team;
 import com.fdlj.fdlj.entity.enums.MatchStatus;
 import com.fdlj.fdlj.entity.enums.ResultadoPartido;
 import com.fdlj.fdlj.entity.enums.TeamSide;
+import com.fdlj.fdlj.exception.InvalidMatchStateException;
 import com.fdlj.fdlj.exception.ResourceNotFoundException;
 import com.fdlj.fdlj.mapper.MatchParticipationMapper;
 import com.fdlj.fdlj.repository.MatchParticipationRepository;
@@ -47,8 +49,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<ParticipationResponse> getMatchStatistics(Long matchId) {
-		matchRepository.findById(matchId)
-				.orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado con id: " + matchId));
+		requireFinalizado(matchId);
 		return participationRepository.findByMatchIdOrderByIdAsc(matchId).stream()
 				.map(participationMapper::toResponse)
 				.toList();
@@ -103,8 +104,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<TeamStandingResponse> getMatchStandings(Long matchId) {
-		matchRepository.findById(matchId)
-				.orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado con id: " + matchId));
+		requireFinalizado(matchId);
 		return buildStandings(participationRepository.findByMatchIdAndJugoEfectivamenteTrue(matchId));
 	}
 
@@ -183,8 +183,13 @@ public class StatisticsServiceImpl implements StatisticsService {
 				continue;
 			}
 
-			int golesA = participation.getMatch().getGolesEquipoA();
-			int golesB = participation.getMatch().getGolesEquipoB();
+			Integer matchGolesA = participation.getMatch().getGolesEquipoA();
+			Integer matchGolesB = participation.getMatch().getGolesEquipoB();
+			if (matchGolesA == null || matchGolesB == null) {
+				throw new InvalidMatchStateException("El partido no tiene resultado cargado");
+			}
+			int golesA = matchGolesA;
+			int golesB = matchGolesB;
 
 			if (side == TeamSide.EQUIPO_A) {
 				acc.golesAFavor += golesA;
@@ -283,8 +288,11 @@ public class StatisticsServiceImpl implements StatisticsService {
 	}
 
 	private ResultadoPartido resultFor(MatchParticipation participation) {
-		int golesA = participation.getMatch().getGolesEquipoA();
-		int golesB = participation.getMatch().getGolesEquipoB();
+		Integer golesA = participation.getMatch().getGolesEquipoA();
+		Integer golesB = participation.getMatch().getGolesEquipoB();
+		if (golesA == null || golesB == null) {
+			throw new InvalidMatchStateException("El partido no tiene resultado cargado");
+		}
 		if (golesA > golesB) {
 			return ResultadoPartido.GANA_EQUIPO_A;
 		}
@@ -292,6 +300,15 @@ public class StatisticsServiceImpl implements StatisticsService {
 			return ResultadoPartido.GANA_EQUIPO_B;
 		}
 		return ResultadoPartido.EMPATE;
+	}
+
+	private Match requireFinalizado(Long matchId) {
+		Match match = matchRepository.findById(matchId)
+				.orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado con id: " + matchId));
+		if (match.getEstado() != MatchStatus.FINALIZADO) {
+			throw new InvalidMatchStateException("El partido todavía no finalizó");
+		}
+		return match;
 	}
 
 	private TeamSide teamSideOf(MatchParticipation participation) {

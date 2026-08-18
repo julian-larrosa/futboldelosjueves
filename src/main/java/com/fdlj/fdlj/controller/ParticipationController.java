@@ -42,7 +42,7 @@ public class ParticipationController {
 	@PostMapping
 	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CREATED, description = "jugador convocado")
-	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "estado inválido o jugador ya convocado")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "estado inválido, jugador ya convocado o convocatoria llena")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "partido o jugador no encontrado")
 	@Operation(summary = "Convocar jugador", description = "Agrega un jugador activo a la convocatoria del partido")
 	public ResponseEntity<ApiResponse<ParticipationResponse>> addPlayer(@PathVariable Long matchId, @Valid @RequestBody ParticipationRequest request) {
