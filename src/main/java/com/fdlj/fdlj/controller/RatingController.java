@@ -16,6 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,11 +35,13 @@ public class RatingController {
 	private final CurrentPlayerService currentPlayerService;
 
 	@PostMapping
+	@PreAuthorize("hasRole('PLAYER')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CREATED, description = "calificación creada")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.BAD_REQUEST, description = "datos inválidos")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "partido no finalizado, auto-calificación, no participó o ya calificó")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "partido o jugador calificado no encontrado")
-	@Operation(summary = "Calificar a un jugador", description = "Califica de 1 a 10 a un jugador que participó efectivamente del partido finalizado")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.FORBIDDEN, description = "solo jugadores")
+	@Operation(summary = "Calificar a un jugador", description = "Califica de 1 a 10 a un jugador que participó efectivamente del partido finalizado (solo jugadores)")
 	public ResponseEntity<ApiResponse<RatingResponse>> createRating(
 			@PathVariable Long matchId, @Valid @RequestBody RatingRequest request) {
 		Long calificadorId = currentPlayerService.getCurrentPlayer().getId();
