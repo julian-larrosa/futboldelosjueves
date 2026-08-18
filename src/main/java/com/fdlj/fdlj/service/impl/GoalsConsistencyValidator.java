@@ -14,7 +14,7 @@ public class GoalsConsistencyValidator {
 	private final MatchParticipationRepository participationRepository;
 
 	public void validateGoals(Long matchId, int golesEquipoA, int golesEquipoB) {
-		var participations = participationRepository.findByMatchIdAndJugoEfectivamenteTrue(matchId);
+		var participations = participationRepository.findByMatchIdAndJugoEfectivamenteTrueWithDetails(matchId);
 		int individualGoalsA = participations.stream()
 				.filter(p -> p.getTeam() != null && p.getTeam().getSide() == TeamSide.EQUIPO_A)
 				.mapToInt(MatchParticipation::getGoles).sum();

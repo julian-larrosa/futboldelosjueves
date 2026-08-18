@@ -10,6 +10,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -44,6 +45,10 @@ public class Match {
 
 	@Column(name = "goles_equipo_b")
 	private Integer golesEquipoB;
+
+	@Version
+	@Column(name = "version", nullable = false)
+	private Long version = 0L;
 
 	@OneToMany(mappedBy = "match")
 	private Set<MatchParticipation> participations = new HashSet<>();

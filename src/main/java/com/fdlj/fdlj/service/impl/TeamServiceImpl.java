@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -56,9 +58,12 @@ public class TeamServiceImpl implements TeamService {
 
 		clearTeams(matchId);
 
+		Map<Long, Double> averages = loadRatingAverages();
+
 		List<MatchParticipation> draft = new ArrayList<>(convocados);
 		draft.sort(Comparator
-				.comparing(this::averageRating, Comparator.reverseOrder())
+				.comparing((MatchParticipation p) -> averages.getOrDefault(p.getPlayer().getId(), 0.0),
+						Comparator.reverseOrder())
 				.thenComparing(p -> p.getId()));
 
 		Team teamA = new Team();
@@ -87,14 +92,14 @@ public class TeamServiceImpl implements TeamService {
 		int teamBSize = draft.size() - teamASize;
 		log.info("Equipos generados para partido id={}: {} jugadores en Equipo A, {} en Equipo B",
 				matchId, teamASize, teamBSize);
-		return buildTeamResponses(matchId);
+		return buildTeamResponses(matchId, averages);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public List<TeamResponse> getTeams(Long matchId) {
 		findMatch(matchId);
-		return buildTeamResponses(matchId);
+		return buildTeamResponses(matchId, loadRatingAverages());
 	}
 
 	@Override
@@ -130,7 +135,7 @@ public class TeamServiceImpl implements TeamService {
 		participation.setTeam(target);
 		participationRepository.save(participation);
 		log.info("Jugador id={} asignado manualmente a {} en partido id={}", playerId, request.teamSide(), matchId);
-		return buildTeamResponses(matchId);
+		return buildTeamResponses(matchId, loadRatingAverages());
 	}
 
 	@Override
@@ -143,19 +148,20 @@ public class TeamServiceImpl implements TeamService {
 		}
 		Team teamA = teams.stream().filter(t -> t.getSide() == TeamSide.EQUIPO_A).findFirst().orElseThrow();
 		Team teamB = teams.stream().filter(t -> t.getSide() == TeamSide.EQUIPO_B).findFirst().orElseThrow();
-		Double avgA = teamAverageRating(membersOf(teamA));
-		Double avgB = teamAverageRating(membersOf(teamB));
+		Map<Long, Double> averages = loadRatingAverages();
+		Double avgA = teamAverageRating(membersOf(teamA), averages);
+		Double avgB = teamAverageRating(membersOf(teamB), averages);
 		double a = avgA != null ? avgA : 0.0;
 		double b = avgB != null ? avgB : 0.0;
 		double diferencia = Math.round(Math.abs(a - b) * 100.0) / 100.0;
 		return new TeamBalanceResponse(avgA, avgB, diferencia);
 	}
 
-	private List<TeamResponse> buildTeamResponses(Long matchId) {
+	private List<TeamResponse> buildTeamResponses(Long matchId, Map<Long, Double> averages) {
 		return teamRepository.findByMatchIdOrderBySideAsc(matchId).stream()
 				.map(team -> {
 					List<MatchParticipation> members = membersOf(team);
-					return teamMapper.toResponse(team, members, teamAverageRating(members));
+					return teamMapper.toResponse(team, members, teamAverageRating(members, averages));
 				})
 				.toList();
 	}
@@ -164,20 +170,24 @@ public class TeamServiceImpl implements TeamService {
 		return participationRepository.findByTeamIdOrderByIdAsc(team.getId());
 	}
 
-	private Double teamAverageRating(List<MatchParticipation> members) {
+	private Double teamAverageRating(List<MatchParticipation> members, Map<Long, Double> averages) {
 		List<MatchParticipation> activos = members.stream()
 				.filter(m -> m.getPlayer().isActivo())
 				.toList();
 		if (activos.isEmpty()) {
 			return null;
 		}
-		double sum = activos.stream().mapToDouble(this::averageRating).sum();
+		double sum = activos.stream()
+				.mapToDouble(m -> averages.getOrDefault(m.getPlayer().getId(), 0.0))
+				.sum();
 		return Math.round((sum / activos.size()) * 100.0) / 100.0;
 	}
 
-	private double averageRating(MatchParticipation participation) {
-		Double avg = ratingRepository.averageByCalificadoId(participation.getPlayer().getId());
-		return avg != null ? avg : 0.0;
+	private Map<Long, Double> loadRatingAverages() {
+		return ratingRepository.averageGroupedByCalificado().stream()
+				.collect(Collectors.toMap(
+						row -> ((Number) row[0]).longValue(),
+						row -> ((Number) row[1]).doubleValue()));
 	}
 
 	private void clearTeams(Long matchId) {

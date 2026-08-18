@@ -20,6 +20,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -62,14 +66,14 @@ public class PlayerServiceImpl implements PlayerService {
 	@Transactional(readOnly = true)
 	public PagedResponse<PlayerResponse> getAllPlayers(Pageable pageable) {
 		Page<Player> page = playerRepository.findByActivoTrue(pageable);
-		return PagedResponse.of(page.map(playerMapper::toResponse));
+		return PagedResponse.of(page.map(p -> playerMapper.toResponse(p, attributesByPlayer(page))));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public PagedResponse<PlayerResponse> searchPlayers(String nombre, String apellido, String email, PlayerPosition posicion, Pageable pageable) {
 		Page<Player> page = playerRepository.searchPlayers(nombre, apellido, email, posicion, pageable);
-		return PagedResponse.of(page.map(playerMapper::toResponse));
+		return PagedResponse.of(page.map(p -> playerMapper.toResponse(p, attributesByPlayer(page))));
 	}
 
 	@Override
@@ -95,6 +99,15 @@ public class PlayerServiceImpl implements PlayerService {
 		player.setActivo(false);
 		playerRepository.save(player);
 		log.info("Jugador desactivado: id={}, nombre={} {}", id, player.getNombre(), player.getApellido());
+	}
+
+	private Map<Long, List<PlayerAttribute>> attributesByPlayer(Page<Player> page) {
+		List<Long> ids = page.getContent().stream().map(Player::getId).toList();
+		if (ids.isEmpty()) {
+			return Map.of();
+		}
+		return attributeRepository.findByPlayerIdIn(ids).stream()
+				.collect(Collectors.groupingBy(a -> a.getPlayer().getId()));
 	}
 
 	private Player findActivePlayer(Long id) {

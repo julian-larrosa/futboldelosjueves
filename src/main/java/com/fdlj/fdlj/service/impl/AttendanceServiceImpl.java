@@ -24,6 +24,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -102,7 +104,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 		}
 		List<MatchAttendance> attendances = year == null
 				? attendanceRepository.findByHinchaIdOrderByMatchFechaHoraDesc(hinchaId)
-				: attendanceRepository.findByHinchaIdAndMatchYear(hinchaId, year);
+				: attendanceRepository.findByHinchaIdAndMatchRange(hinchaId, yearStartOrNull(year), yearEndOrNull(year));
 		return attendances.stream()
 				.map(attendanceMapper::toResponse)
 				.toList();
@@ -111,7 +113,10 @@ public class AttendanceServiceImpl implements AttendanceService {
 	@Override
 	@Transactional(readOnly = true)
 	public List<AttendanceRankingResponse> getAttendanceRanking(Integer year) {
-		List<Object[]> rows = attendanceRepository.rankingGroupedByHinchaAndYear(MatchStatus.FINALIZADO, year);
+		List<Object[]> rows = year == null
+				? attendanceRepository.rankingGroupedByHincha(MatchStatus.FINALIZADO)
+				: attendanceRepository.rankingGroupedByHinchaInRange(
+						MatchStatus.FINALIZADO, yearStartOrNull(year), yearEndOrNull(year));
 		Map<Long, RankingAccumulator> accumulators = new LinkedHashMap<>();
 		for (Object[] row : rows) {
 			Long hinchaId = ((Number) row[0]).longValue();
@@ -135,8 +140,13 @@ public class AttendanceServiceImpl implements AttendanceService {
 	@Transactional(readOnly = true)
 	public AttendanceStatisticsResponse getAttendanceStatistics(Integer year) {
 		long totalHinchas = hinchaRepository.countByActivoTrue();
-		long totalAsistencias = attendanceRepository.countAll(MatchStatus.FINALIZADO, year);
-		long partidosConAsistencia = attendanceRepository.countDistinctMatches(MatchStatus.FINALIZADO, year);
+		long totalAsistencias = year == null
+				? attendanceRepository.countAll(MatchStatus.FINALIZADO)
+				: attendanceRepository.countAllInRange(MatchStatus.FINALIZADO, yearStartOrNull(year), yearEndOrNull(year));
+		long partidosConAsistencia = year == null
+				? attendanceRepository.countDistinctMatches(MatchStatus.FINALIZADO)
+				: attendanceRepository.countDistinctMatchesInRange(
+						MatchStatus.FINALIZADO, yearStartOrNull(year), yearEndOrNull(year));
 		double promedio = partidosConAsistencia > 0
 				? Math.round((double) totalAsistencias / partidosConAsistencia * 100.0) / 100.0
 				: 0.0;
@@ -158,6 +168,14 @@ public class AttendanceServiceImpl implements AttendanceService {
 	private Hincha findActiveHincha(Long hinchaId) {
 		return hinchaRepository.findByIdAndActivoTrue(hinchaId)
 				.orElseThrow(() -> new ResourceNotFoundException("Hincha no encontrado con id: " + hinchaId));
+	}
+
+	private OffsetDateTime yearStartOrNull(Integer year) {
+		return year == null ? null : OffsetDateTime.of(year, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+	}
+
+	private OffsetDateTime yearEndOrNull(Integer year) {
+		return year == null ? null : yearStartOrNull(year).plusYears(1);
 	}
 
 	private static class RankingAccumulator {

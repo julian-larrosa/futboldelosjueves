@@ -28,6 +28,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,7 +52,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 	@Transactional(readOnly = true)
 	public List<ParticipationResponse> getMatchStatistics(Long matchId) {
 		requireFinalizado(matchId);
-		return participationRepository.findByMatchIdOrderByIdAsc(matchId).stream()
+		return participationRepository.findByMatchIdOrderByIdAscWithDetails(matchId).stream()
 				.map(participationMapper::toResponse)
 				.toList();
 	}
@@ -105,7 +107,7 @@ public class StatisticsServiceImpl implements StatisticsService {
 	@Transactional(readOnly = true)
 	public List<TeamStandingResponse> getMatchStandings(Long matchId) {
 		requireFinalizado(matchId);
-		return buildStandings(participationRepository.findByMatchIdAndJugoEfectivamenteTrue(matchId));
+		return buildStandings(participationRepository.findByMatchIdAndJugoEfectivamenteTrueWithDetails(matchId));
 	}
 
 	@Override
@@ -147,7 +149,9 @@ public class StatisticsServiceImpl implements StatisticsService {
 	public List<RatingAverageResponse> getRatingRanking(Integer year) {
 		Map<Long, RatingAccumulator> accumulators = new LinkedHashMap<>();
 
-		for (Rating rating : ratingRepository.findByYear(year)) {
+		for (Rating rating : year == null
+				? ratingRepository.findAllWithCalificado()
+				: ratingRepository.findByRange(yearStart(year), yearEnd(year))) {
 			Player calificado = rating.getCalificado();
 			Long playerId = calificado.getId();
 			RatingAccumulator acc = accumulators.computeIfAbsent(playerId,
@@ -234,11 +238,10 @@ public class StatisticsServiceImpl implements StatisticsService {
 
 	private List<MatchParticipation> fetchFinishedParticipations(Integer year) {
 		if (year == null) {
-			return participationRepository.findByMatchEstadoAndJugoEfectivamenteTrueOrderByMatchFechaHoraDesc(
-					MatchStatus.FINALIZADO);
+			return participationRepository.findByMatchEstadoAndJugoEfectivamenteTrueWithDetails(MatchStatus.FINALIZADO);
 		}
-		return participationRepository.findByMatchEstadoAndJugoEfectivamenteTrueByYearOrderByMatchFechaHoraDesc(
-				MatchStatus.FINALIZADO, year);
+		return participationRepository.findByMatchEstadoAndJugoEfectivamenteTrueByRangeOrderByMatchFechaHoraDesc(
+				MatchStatus.FINALIZADO, yearStart(year), yearEnd(year));
 	}
 
 	private Double calculateAttributeAverage(Long playerId) {
@@ -255,12 +258,20 @@ public class StatisticsServiceImpl implements StatisticsService {
 	private List<MatchParticipation> participationsPlayed(Long playerId, Integer year) {
 		if (year == null) {
 			return participationRepository
-					.findByPlayerIdAndMatchEstadoAndJugoEfectivamenteTrueOrderByMatchFechaHoraDesc(
+					.findByPlayerIdAndMatchEstadoAndJugoEfectivamenteTrueWithDetails(
 							playerId, MatchStatus.FINALIZADO);
 		}
 		return participationRepository
-				.findByPlayerIdAndMatchEstadoAndJugoEfectivamenteTrueByYearOrderByMatchFechaHoraDesc(
-						playerId, MatchStatus.FINALIZADO, year);
+				.findByPlayerIdAndMatchEstadoAndJugoEfectivamenteTrueByRangeOrderByMatchFechaHoraDesc(
+						playerId, MatchStatus.FINALIZADO, yearStart(year), yearEnd(year));
+	}
+
+	private OffsetDateTime yearStart(Integer year) {
+		return OffsetDateTime.of(year, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+	}
+
+	private OffsetDateTime yearEnd(Integer year) {
+		return yearStart(year).plusYears(1);
 	}
 
 	private Aggregated aggregate(List<MatchParticipation> played) {
