@@ -81,19 +81,23 @@ public class PlayerController {
 	}
 
 	@PutMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "jugador actualizado exitosamente")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "jugador no encontrado")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "email ya utilizado por otro jugador")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.BAD_REQUEST, description = "datos inválidos")
-	@Operation(summary = "Actualizar jugador", description = "Actualiza los datos de un jugador activo")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.FORBIDDEN, description = "solo ADMIN")
+	@Operation(summary = "Actualizar jugador", description = "Actualiza los datos de un jugador activo (solo ADMIN)")
 	public ResponseEntity<ApiResponse<PlayerResponse>> updatePlayer(@PathVariable Long id, @Valid @RequestBody PlayerRequest request) {
 		return ResponseEntity.ok().body(ApiResponse.ok(playerService.updatePlayer(id, request)));
 	}
 
 	@DeleteMapping("/{id}")
+	@PreAuthorize("hasRole('ADMIN')")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NO_CONTENT, description = "jugador desactivado")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "jugador no encontrado")
-	@Operation(summary = "Desactivar jugador", description = "Desactiva un jugador mediante eliminación lógica")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.FORBIDDEN, description = "solo ADMIN")
+	@Operation(summary = "Desactivar jugador", description = "Desactiva un jugador mediante eliminación lógica (solo ADMIN)")
 	public ResponseEntity<ApiResponse<Void>> deactivatePlayer(@PathVariable Long id) {
 		playerService.deactivatePlayer(id);
 		return ResponseEntity.status(HttpStatus.NO_CONTENT).build();

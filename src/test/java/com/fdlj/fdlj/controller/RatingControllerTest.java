@@ -120,6 +120,31 @@ class RatingControllerTest extends IntegrationTestBase {
 				.andExpect(status().isUnauthorized());
 	}
 
+	@Test
+	void createRating_withHinchaToken_returns403() throws Exception {
+		String admin = adminToken();
+		RatingSetup setup = setupFinishedMatchForRating(admin);
+		HinchaInfo hincha = registerHincha("HinchaSinPermiso");
+		String body = objectMapper.writeValueAsString(new RatingRequest(setup.calificado(), 8));
+		mockMvc.perform(post("/api/matches/" + setup.matchId() + "/ratings")
+						.header("Authorization", bearer(hincha.token()))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void createRating_withAdminToken_returns403() throws Exception {
+		String admin = adminToken();
+		RatingSetup setup = setupFinishedMatchForRating(admin);
+		String body = objectMapper.writeValueAsString(new RatingRequest(setup.calificado(), 8));
+		mockMvc.perform(post("/api/matches/" + setup.matchId() + "/ratings")
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(body))
+				.andExpect(status().isForbidden());
+	}
+
 	private RatingSetup setupWithEffectiveFlags(String admin, boolean calificadorEfectivo, boolean calificadoEfectivo)
 			throws Exception {
 		Long matchId = createMatch(admin);
