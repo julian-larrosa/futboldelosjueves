@@ -20,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -43,15 +44,17 @@ public class PlayerServiceImpl implements PlayerService {
 		Player player = playerMapper.toEntity(request);
 		Player savedPlayer = playerRepository.save(player);
 
+		List<PlayerAttribute> attributes = new ArrayList<>();
 		for (AttributeType type : AttributeType.values()) {
 			PlayerAttribute attribute = new PlayerAttribute();
 			attribute.setPlayer(savedPlayer);
 			attribute.setAttributeType(type);
 			attribute.setCurrentValue(5.0);
-			attributeRepository.save(attribute);
+			attributes.add(attribute);
 		}
+		List<PlayerAttribute> savedAttributes = attributeRepository.saveAll(attributes);
 
-		PlayerResponse response = playerMapper.toResponse(savedPlayer);
+		PlayerResponse response = playerMapper.toResponse(savedPlayer, Map.of(savedPlayer.getId(), savedAttributes));
 		log.info("Jugador creado: {} {} (id={})", response.nombre(), response.apellido(), response.id());
 		return response;
 	}
@@ -59,21 +62,24 @@ public class PlayerServiceImpl implements PlayerService {
 	@Override
 	@Transactional(readOnly = true)
 	public PlayerResponse getPlayerById(Long id) {
-		return playerMapper.toResponse(findActivePlayer(id));
+		Player player = findActivePlayer(id);
+		return playerMapper.toResponse(player, attributesByPlayers(List.of(player)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public PagedResponse<PlayerResponse> getAllPlayers(Pageable pageable) {
 		Page<Player> page = playerRepository.findByActivoTrue(pageable);
-		return PagedResponse.of(page.map(p -> playerMapper.toResponse(p, attributesByPlayer(page))));
+		Map<Long, List<PlayerAttribute>> attributesByPlayer = attributesByPlayers(page.getContent());
+		return PagedResponse.of(page.map(p -> playerMapper.toResponse(p, attributesByPlayer)));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public PagedResponse<PlayerResponse> searchPlayers(String nombre, String apellido, String email, PlayerPosition posicion, Pageable pageable) {
 		Page<Player> page = playerRepository.searchPlayers(nombre, apellido, email, posicion, pageable);
-		return PagedResponse.of(page.map(p -> playerMapper.toResponse(p, attributesByPlayer(page))));
+		Map<Long, List<PlayerAttribute>> attributesByPlayer = attributesByPlayers(page.getContent());
+		return PagedResponse.of(page.map(p -> playerMapper.toResponse(p, attributesByPlayer)));
 	}
 
 	@Override
@@ -89,7 +95,8 @@ public class PlayerServiceImpl implements PlayerService {
 		player.setEmail(email);
 		player.setPosicion(request.posicion());
 		log.info("Jugador actualizado: id={}", id);
-		return playerMapper.toResponse(playerRepository.save(player));
+		Player savedPlayer = playerRepository.save(player);
+		return playerMapper.toResponse(savedPlayer, attributesByPlayers(List.of(savedPlayer)));
 	}
 
 	@Override
@@ -101,8 +108,8 @@ public class PlayerServiceImpl implements PlayerService {
 		log.info("Jugador desactivado: id={}, nombre={} {}", id, player.getNombre(), player.getApellido());
 	}
 
-	private Map<Long, List<PlayerAttribute>> attributesByPlayer(Page<Player> page) {
-		List<Long> ids = page.getContent().stream().map(Player::getId).toList();
+	private Map<Long, List<PlayerAttribute>> attributesByPlayers(List<Player> players) {
+		List<Long> ids = players.stream().map(Player::getId).toList();
 		if (ids.isEmpty()) {
 			return Map.of();
 		}

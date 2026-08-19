@@ -12,6 +12,7 @@ import com.fdlj.fdlj.exception.ResourceNotFoundException;
 import com.fdlj.fdlj.mapper.MatchCommentMapper;
 import com.fdlj.fdlj.repository.MatchCommentRepository;
 import com.fdlj.fdlj.repository.MatchRepository;
+import com.fdlj.fdlj.repository.UserRepository;
 import com.fdlj.fdlj.service.MatchCommentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,19 +30,21 @@ public class MatchCommentServiceImpl implements MatchCommentService {
 	private final MatchRepository matchRepository;
 	private final MatchCommentRepository commentRepository;
 	private final MatchCommentMapper commentMapper;
+	private final UserRepository userRepository;
 
 	@Override
 	@Transactional
 	public MatchCommentResponse createComment(Long matchId, MatchCommentRequest request, User author) {
 		Match match = findMatch(matchId);
-		validateCreate(match, author);
+		User managedAuthor = reloadAuthor(author);
+		validateCreate(match, managedAuthor);
 
 		MatchComment comment = new MatchComment();
 		comment.setMatch(match);
-		comment.setAuthor(author);
+		comment.setAuthor(managedAuthor);
 		comment.setContenido(request.contenido().trim());
 		MatchComment saved = commentRepository.save(comment);
-		log.info("Comentario creado: id={} en partido id={}, autor {}", saved.getId(), matchId, author.getRole());
+		log.info("Comentario creado: id={} en partido id={}, autor {}", saved.getId(), matchId, managedAuthor.getRole());
 		return commentMapper.toResponse(saved);
 	}
 
@@ -53,7 +56,8 @@ public class MatchCommentServiceImpl implements MatchCommentService {
 		if (!comment.getMatch().getId().equals(matchId)) {
 			throw new ResourceNotFoundException("Comentario no encontrado con id: " + commentId);
 		}
-		validateUpdate(match, comment, author);
+		User managedAuthor = reloadAuthor(author);
+		validateUpdate(match, comment, managedAuthor);
 
 		comment.setContenido(request.contenido().trim());
 		MatchComment saved = commentRepository.save(comment);
@@ -111,5 +115,11 @@ public class MatchCommentServiceImpl implements MatchCommentService {
 	private MatchComment findComment(Long commentId) {
 		return commentRepository.findById(commentId)
 				.orElseThrow(() -> new ResourceNotFoundException("Comentario no encontrado con id: " + commentId));
+	}
+
+	private User reloadAuthor(User author) {
+		return userRepository.findById(author.getId())
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"Usuario no encontrado con id: " + author.getId()));
 	}
 }

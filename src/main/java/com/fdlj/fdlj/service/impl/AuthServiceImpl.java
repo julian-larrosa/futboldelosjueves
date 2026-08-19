@@ -20,6 +20,7 @@ import com.fdlj.fdlj.repository.PlayerAttributeRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.repository.UserRepository;
 import com.fdlj.fdlj.security.JwtService;
+import com.fdlj.fdlj.security.UserActivityService;
 import com.fdlj.fdlj.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -42,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
 	private final HinchaRepository hinchaRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtService jwtService;
+	private final UserActivityService userActivityService;
 	private final UserMapper userMapper;
 	private final PlayerMapper playerMapper;
 
@@ -72,19 +77,22 @@ public class AuthServiceImpl implements AuthService {
 		player.setUser(savedUser);
 
 		savedUser.setPlayer(player);
-		playerRepository.save(player);
+		Player savedPlayer = playerRepository.save(player);
 
+		List<PlayerAttribute> attributes = new ArrayList<>();
 		for (AttributeType type : AttributeType.values()) {
 			PlayerAttribute attribute = new PlayerAttribute();
-			attribute.setPlayer(player);
+			attribute.setPlayer(savedPlayer);
 			attribute.setAttributeType(type);
 			attribute.setCurrentValue(5.0);
-			attributeRepository.save(attribute);
+			attributes.add(attribute);
 		}
+		List<PlayerAttribute> savedAttributes = attributeRepository.saveAll(attributes);
 
 		log.info("Nuevo usuario registrado: {} ({})", username, email);
 		String token = jwtService.generateToken(user);
-		return AuthResponse.of(token, userMapper.toResponse(user), playerMapper.toResponse(player));
+		return AuthResponse.of(token, userMapper.toResponse(user),
+				playerMapper.toResponse(savedPlayer, Map.of(savedPlayer.getId(), savedAttributes)));
 	}
 
 	@Override
@@ -131,10 +139,14 @@ public class AuthServiceImpl implements AuthService {
 			log.warn("Contraseña incorrecta para usuario: {}", email);
 			throw new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE);
 		}
+		if (!userActivityService.isUserActive(user)) {
+			log.warn("Intento de login de usuario inactivo: {}", email);
+			throw new InvalidCredentialsException(INVALID_CREDENTIALS_MESSAGE);
+		}
 
 		log.info("Login exitoso: {}", email);
 		Player player = user.getPlayer();
-		PlayerResponse playerResponse = player != null ? playerMapper.toResponse(player) : null;
+		PlayerResponse playerResponse = player != null ? playerMapper.toResponse(player, attributesByPlayer(player.getId())) : null;
 		String token = jwtService.generateToken(user);
 		return AuthResponse.of(token, userMapper.toResponse(user), playerResponse);
 	}
@@ -169,5 +181,10 @@ public class AuthServiceImpl implements AuthService {
 			username = base + "_" + UUID.randomUUID().toString().substring(0, 6);
 		}
 		return username;
+	}
+
+	private Map<Long, List<PlayerAttribute>> attributesByPlayer(Long playerId) {
+		List<PlayerAttribute> attributes = attributeRepository.findByPlayerIdIn(List.of(playerId));
+		return Map.of(playerId, attributes);
 	}
 }

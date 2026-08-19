@@ -25,6 +25,8 @@ public interface PlayerRepository extends JpaRepository<Player, Long> {
 
 	boolean existsByUserId(Long userId);
 
+	boolean existsByUserIdAndActivoTrue(Long userId);
+
 	@Query("SELECT p FROM Player p WHERE p.activo = true " +
 			"AND (:nombre IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :nombre, '%'))) " +
 			"AND (:apellido IS NULL OR LOWER(p.apellido) LIKE LOWER(CONCAT('%', :apellido, '%'))) " +

@@ -16,6 +16,8 @@ public interface HinchaRepository extends JpaRepository<Hincha, Long> {
 
 	boolean existsByUserId(Long userId);
 
+	boolean existsByUserIdAndActivoTrue(Long userId);
+
 	Page<Hincha> findByActivoTrue(Pageable pageable);
 
 	List<Hincha> findByActivoTrue();

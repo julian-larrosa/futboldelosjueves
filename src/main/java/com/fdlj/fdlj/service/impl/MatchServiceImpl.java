@@ -21,6 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,7 +40,8 @@ public class MatchServiceImpl implements MatchService {
 	@Transactional
 	public MatchResponse createMatch(MatchRequest request) {
 		validateFutureDate(request.fechaHora());
-		MatchResponse response = matchMapper.toResponse(matchRepository.save(matchMapper.toEntity(request)));
+		Match savedMatch = matchRepository.save(matchMapper.toEntity(request));
+		MatchResponse response = matchMapper.toResponse(savedMatch, 0);
 		log.info("Partido creado: id={}, lugar={}", response.id(), response.lugar());
 		return response;
 	}
@@ -45,21 +49,21 @@ public class MatchServiceImpl implements MatchService {
 	@Override
 	@Transactional(readOnly = true)
 	public MatchResponse getMatchById(Long id) {
-		return matchMapper.toResponse(findMatch(id));
+		return toResponse(findMatch(id));
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public PagedResponse<MatchResponse> getAllMatches(Pageable pageable) {
 		Page<Match> page = matchRepository.findAll(pageable);
-		return PagedResponse.of(page.map(matchMapper::toResponse));
+		return toPagedResponse(page);
 	}
 
 	@Override
 	@Transactional(readOnly = true)
 	public PagedResponse<MatchResponse> searchMatches(MatchStatus estado, String lugar, OffsetDateTime fechaDesde, OffsetDateTime fechaHasta, Pageable pageable) {
 		Page<Match> page = matchRepository.searchMatches(estado, lugar, fechaDesde, fechaHasta, pageable);
-		return PagedResponse.of(page.map(matchMapper::toResponse));
+		return toPagedResponse(page);
 	}
 
 	@Override
@@ -72,7 +76,7 @@ public class MatchServiceImpl implements MatchService {
 		}
 		match.setFechaHora(request.fechaHora());
 		match.setLugar(matchMapper.normalizeLugar(request.lugar()));
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	@Override
@@ -81,7 +85,7 @@ public class MatchServiceImpl implements MatchService {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.PROGRAMADO, MatchStatus.CONVOCATORIA_ABIERTA);
 		log.info("Convocatoria abierta para partido id={}", id);
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	@Override
@@ -90,7 +94,7 @@ public class MatchServiceImpl implements MatchService {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.CONVOCATORIA_ABIERTA, MatchStatus.CONVOCATORIA_CERRADA);
 		log.info("Convocatoria cerrada para partido id={}", id);
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	@Override
@@ -99,7 +103,7 @@ public class MatchServiceImpl implements MatchService {
 		Match match = findMatch(id);
 		transition(match, MatchStatus.CONVOCATORIA_CERRADA, MatchStatus.CONVOCATORIA_ABIERTA);
 		log.info("Convocatoria reabierta para partido id={}", id);
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	@Override
@@ -112,7 +116,7 @@ public class MatchServiceImpl implements MatchService {
 		}
 		match.setEstado(MatchStatus.EN_CURSO);
 		log.info("Partido iniciado: id={}", id);
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	@Override
@@ -124,7 +128,7 @@ public class MatchServiceImpl implements MatchService {
 		match.setGolesEquipoA(request.golesEquipoA());
 		match.setGolesEquipoB(request.golesEquipoB());
 		log.info("Partido finalizado: id={}, resultado={}-{}", id, request.golesEquipoA(), request.golesEquipoB());
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	@Override
@@ -136,7 +140,7 @@ public class MatchServiceImpl implements MatchService {
 		}
 		match.setEstado(MatchStatus.CANCELADO);
 		log.info("Partido cancelado: id={}", id);
-		return matchMapper.toResponse(matchRepository.save(match));
+		return toResponse(matchRepository.save(match));
 	}
 
 	private Match findMatch(Long id) {
@@ -164,5 +168,26 @@ public class MatchServiceImpl implements MatchService {
 		if (fechaHora.isBefore(OffsetDateTime.now())) {
 			throw new InvalidMatchStateException("La fecha del partido debe ser futura");
 		}
+	}
+
+	private PagedResponse<MatchResponse> toPagedResponse(Page<Match> page) {
+		Map<Long, Integer> participationCounts = participationCountsByMatchId(page.getContent());
+		return PagedResponse.of(page.map(match -> matchMapper.toResponse(
+				match, participationCounts.getOrDefault(match.getId(), 0))));
+	}
+
+	private MatchResponse toResponse(Match match) {
+		return matchMapper.toResponse(match, (int) participationRepository.countByMatchId(match.getId()));
+	}
+
+	private Map<Long, Integer> participationCountsByMatchId(List<Match> matches) {
+		List<Long> matchIds = matches.stream().map(Match::getId).toList();
+		if (matchIds.isEmpty()) {
+			return Map.of();
+		}
+		return participationRepository.countParticipationsGroupedByMatchId(matchIds).stream()
+				.collect(Collectors.toMap(
+						row -> ((Number) row[0]).longValue(),
+						row -> ((Number) row[1]).intValue()));
 	}
 }

@@ -56,7 +56,8 @@ class AuthControllerTest {
 				.andExpect(jsonPath("$.data.user.email").value(email))
 				.andExpect(jsonPath("$.data.user.role").value("PLAYER"))
 				.andExpect(jsonPath("$.data.player.nombre").value("Juan"))
-				.andExpect(jsonPath("$.data.player.activo").value(true));
+				.andExpect(jsonPath("$.data.player.activo").value(true))
+				.andExpect(jsonPath("$.data.player.attributes.attributes.length()").value(5));
 	}
 
 	@Test
@@ -109,7 +110,8 @@ class AuthControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.success").value(true))
 				.andExpect(jsonPath("$.data.token").isNotEmpty())
-				.andExpect(jsonPath("$.data.user.email").value(email));
+				.andExpect(jsonPath("$.data.user.email").value(email))
+				.andExpect(jsonPath("$.data.player.attributes.attributes.length()").value(5));
 	}
 
 	@Test
@@ -212,6 +214,12 @@ class AuthControllerTest {
 
 		mockMvc.perform(get("/api/players")
 						.header("Authorization", "Bearer " + token))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void swagger_withoutToken_whenEnabled_returns200() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(status().isOk());
 	}
 }
