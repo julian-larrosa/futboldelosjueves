@@ -100,4 +100,52 @@ class QueryCountTest extends IntegrationTestBase {
 				.as("el count de consultas no debe crecer linealmente con la cantidad de partidos")
 				.isLessThanOrEqualTo(queriesWithOneMatch + 1);
 	}
+
+	@Test
+	void getPlayers_queryCountDoesNotScaleWithNumberOfPlayers() throws Exception {
+		String admin = adminToken();
+		createPlayer("Jugador1");
+		sessionFactory.getStatistics().clear();
+		mockMvc.perform(get("/api/players?size=10")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk());
+		long queriesWithOnePlayer = queries();
+
+		for (int i = 2; i <= 10; i++) {
+			createPlayer("Jugador" + i);
+		}
+		sessionFactory.getStatistics().clear();
+		mockMvc.perform(get("/api/players?size=10")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk());
+		long queriesWithTenPlayers = queries();
+
+		assertThat(queriesWithTenPlayers)
+				.as("el count de consultas no debe crecer linealmente con la cantidad de jugadores")
+				.isLessThanOrEqualTo(queriesWithOnePlayer + 1);
+	}
+
+	@Test
+	void getMatches_queryCountDoesNotScaleWithNumberOfMatches() throws Exception {
+		String admin = adminToken();
+		createMatch(admin);
+		sessionFactory.getStatistics().clear();
+		mockMvc.perform(get("/api/matches?size=10")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk());
+		long queriesWithOneMatch = queries();
+
+		for (int i = 2; i <= 10; i++) {
+			createMatch(admin);
+		}
+		sessionFactory.getStatistics().clear();
+		mockMvc.perform(get("/api/matches?size=10")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isOk());
+		long queriesWithTenMatches = queries();
+
+		assertThat(queriesWithTenMatches)
+				.as("el count de consultas no debe crecer linealmente con la cantidad de partidos")
+				.isLessThanOrEqualTo(queriesWithOneMatch + 1);
+	}
 }

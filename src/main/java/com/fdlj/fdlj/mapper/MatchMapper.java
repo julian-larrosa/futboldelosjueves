@@ -17,8 +17,7 @@ public class MatchMapper {
 		return match;
 	}
 
-	public MatchResponse toResponse(Match match) {
-		int convocados = match.getParticipations().size();
+	public MatchResponse toResponse(Match match, int cantidadConvocados) {
 		return new MatchResponse(
 				match.getId(),
 				match.getFechaHora(),
@@ -26,7 +25,7 @@ public class MatchMapper {
 				match.getEstado(),
 				match.getGolesEquipoA(),
 				match.getGolesEquipoB(),
-				convocados
+				cantidadConvocados
 		);
 	}
 

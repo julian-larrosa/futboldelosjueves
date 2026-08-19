@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +33,10 @@ public interface MatchParticipationRepository extends JpaRepository<MatchPartici
 	boolean existsByMatchIdAndPlayerId(Long matchId, Long playerId);
 
 	long countByMatchId(Long matchId);
+
+	@Query("SELECT p.match.id, COUNT(p) FROM MatchParticipation p "
+			+ "WHERE p.match.id IN :matchIds GROUP BY p.match.id")
+	List<Object[]> countParticipationsGroupedByMatchId(@Param("matchIds") Collection<Long> matchIds);
 
 	@Query("SELECT p FROM MatchParticipation p JOIN FETCH p.player LEFT JOIN FETCH p.team "
 			+ "WHERE p.match.estado = :estado AND p.jugoEfectivamente = true "

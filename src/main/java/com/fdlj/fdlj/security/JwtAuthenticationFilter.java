@@ -24,6 +24,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtService jwtService;
+	private final UserActivityService userActivityService;
 
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -35,11 +36,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			if (jwtService.isValid(token)) {
 				String email = jwtService.extractEmail(token);
 				String role = jwtService.extractRole(token);
-				var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
-				var authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
-				authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-				SecurityContextHolder.getContext().setAuthentication(authentication);
-				log.debug("Token JWT válido para usuario: {} (rol: {})", email, role);
+				if (userActivityService.isActiveUser(email)) {
+					var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+					var authentication = new UsernamePasswordAuthenticationToken(email, null, authorities);
+					authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+					SecurityContextHolder.getContext().setAuthentication(authentication);
+					log.debug("Token JWT válido para usuario: {} (rol: {})", email, role);
+				} else {
+					log.warn("Token JWT rechazado: usuario inactivo o inexistente: {}", email);
+				}
 			} else {
 				log.warn("Token JWT inválido o expirado");
 			}

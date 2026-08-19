@@ -1,8 +1,10 @@
 package com.fdlj.fdlj.config;
 
 import com.fdlj.fdlj.exception.ErrorResponse;
+import com.fdlj.fdlj.security.AuthRateLimitFilter;
 import com.fdlj.fdlj.security.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -34,6 +36,18 @@ public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final JsonMapper objectMapper;
 
+	@Value("${app.security.swagger-enabled:true}")
+	private boolean swaggerEnabled;
+
+	@Value("${app.security.auth-rate-limit.enabled:true}")
+	private boolean rateLimitEnabled;
+
+	@Value("${app.security.auth-rate-limit.max:20}")
+	private int rateLimitMax;
+
+	@Value("${app.security.auth-rate-limit.window-seconds:60}")
+	private long rateLimitWindowSeconds;
+
 	@Bean
 	PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
@@ -50,10 +64,15 @@ public class SecurityConfig {
 				.exceptionHandling(exceptions -> exceptions
 						.authenticationEntryPoint(authenticationEntryPoint())
 						.accessDeniedHandler(accessDeniedHandler()))
-				.authorizeHttpRequests(auth -> auth
-						.requestMatchers("/api/auth/**").permitAll()
-						.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-						.anyRequest().authenticated())
+				.authorizeHttpRequests(auth -> {
+					auth.requestMatchers("/api/auth/**").permitAll();
+					if (swaggerEnabled) {
+						auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+					}
+					auth.anyRequest().authenticated();
+				})
+				.addFilterBefore(new AuthRateLimitFilter(objectMapper, rateLimitEnabled, rateLimitMax, rateLimitWindowSeconds),
+						UsernamePasswordAuthenticationFilter.class)
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
 	}

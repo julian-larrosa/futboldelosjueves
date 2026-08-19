@@ -166,6 +166,7 @@ class MatchControllerTest extends IntegrationTestBase {
 		mockMvc.perform(get("/api/matches/" + matchId)
 						.header("Authorization", bearer(admin)))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.data.id").value(matchId));
+				.andExpect(jsonPath("$.data.id").value(matchId))
+				.andExpect(jsonPath("$.data.cantidadConvocados").value(0));
 	}
 }
