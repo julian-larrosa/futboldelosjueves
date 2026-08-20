@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -85,5 +86,18 @@ class PlayerControllerTest extends IntegrationTestBase {
 		mockMvc.perform(delete("/api/players/" + playerId)
 						.header("Authorization", bearer(hincha.token())))
 				.andExpect(status().isForbidden());
+	}
+
+	@Test
+	void getAllPlayers_conFiltroNombre_returns200AndFiltra() throws Exception {
+		String admin = adminToken();
+		createPlayer("BuscadoPorNombre");
+		mockMvc.perform(get("/api/players")
+						.header("Authorization", bearer(admin))
+						.param("nombre", "buscado"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.content").isArray())
+				.andExpect(jsonPath("$.data.totalElements").value(1));
 	}
 }

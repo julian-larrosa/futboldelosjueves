@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -62,7 +63,9 @@ public class MatchServiceImpl implements MatchService {
 	@Override
 	@Transactional(readOnly = true)
 	public PagedResponse<MatchResponse> searchMatches(MatchStatus estado, String lugar, OffsetDateTime fechaDesde, OffsetDateTime fechaHasta, Pageable pageable) {
-		Page<Match> page = matchRepository.searchMatches(estado, lugar, fechaDesde, fechaHasta, pageable);
+		OffsetDateTime desde = fechaDesde != null ? fechaDesde : OffsetDateTime.of(1900, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+		OffsetDateTime hasta = fechaHasta != null ? fechaHasta : OffsetDateTime.of(2100, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+		Page<Match> page = matchRepository.searchMatches(estado, lugar, desde, hasta, pageable);
 		return toPagedResponse(page);
 	}
 

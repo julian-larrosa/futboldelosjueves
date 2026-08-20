@@ -17,9 +17,9 @@ public interface MatchRepository extends JpaRepository<Match, Long> {
 
 	@Query("SELECT m FROM Match m " +
 			"WHERE (:estado IS NULL OR m.estado = :estado) " +
-			"AND (:lugar IS NULL OR LOWER(m.lugar) LIKE LOWER(CONCAT('%', :lugar, '%'))) " +
-			"AND (:fechaDesde IS NULL OR m.fechaHora >= :fechaDesde) " +
-			"AND (:fechaHasta IS NULL OR m.fechaHora <= :fechaHasta)")
+			"AND (:lugar IS NULL OR LOWER(m.lugar) LIKE LOWER(CONCAT('%', CAST(:lugar AS string), '%'))) " +
+			"AND m.fechaHora >= :fechaDesde " +
+			"AND m.fechaHora <= :fechaHasta")
 	Page<Match> searchMatches(
 			@Param("estado") MatchStatus estado,
 			@Param("lugar") String lugar,
