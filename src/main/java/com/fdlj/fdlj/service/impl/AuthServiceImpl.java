@@ -1,8 +1,10 @@
 package com.fdlj.fdlj.service.impl;
 
+import com.fdlj.fdlj.dto.request.ChangePasswordRequest;
 import com.fdlj.fdlj.dto.request.LoginRequest;
 import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
+import com.fdlj.fdlj.dto.request.ResetPasswordRequest;
 import com.fdlj.fdlj.dto.response.AuthResponse;
 import com.fdlj.fdlj.dto.response.PlayerResponse;
 import com.fdlj.fdlj.entity.Hincha;
@@ -12,7 +14,9 @@ import com.fdlj.fdlj.entity.User;
 import com.fdlj.fdlj.entity.enums.AttributeType;
 import com.fdlj.fdlj.entity.enums.Role;
 import com.fdlj.fdlj.exception.InvalidCredentialsException;
+import com.fdlj.fdlj.exception.InvalidPasswordException;
 import com.fdlj.fdlj.exception.ResourceAlreadyExistsException;
+import com.fdlj.fdlj.exception.ResourceNotFoundException;
 import com.fdlj.fdlj.mapper.PlayerMapper;
 import com.fdlj.fdlj.mapper.UserMapper;
 import com.fdlj.fdlj.repository.HinchaRepository;
@@ -40,6 +44,8 @@ public class AuthServiceImpl implements AuthService {
 
 	private static final String INVALID_CREDENTIALS_MESSAGE = "Email o contraseña incorrectos.";
 
+	private static final String INVALID_PASSWORD_MESSAGE = "La contraseña actual es incorrecta.";
+
 	private final UserRepository userRepository;
 	private final PlayerRepository playerRepository;
 	private final PlayerAttributeRepository attributeRepository;
@@ -62,6 +68,7 @@ public class AuthServiceImpl implements AuthService {
 		user.setEmail(email);
 		user.setPassword(passwordEncoder.encode(request.password()));
 		user.setRole(Role.PLAYER);
+		user.setMustChangePassword(false);
 
 		User savedUser = userRepository.saveAndFlush(user);
 		if (playerRepository.existsByUserId(savedUser.getId())) {
@@ -92,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
 		log.info("Nuevo usuario registrado: {} ({})", username, email);
 		String token = jwtService.generateToken(user);
 		return AuthResponse.of(token, userMapper.toResponse(user),
-				playerMapper.toResponse(savedPlayer, Map.of(savedPlayer.getId(), savedAttributes)));
+				playerMapper.toResponse(savedPlayer, Map.of(savedPlayer.getId(), savedAttributes)), false);
 	}
 
 	@Override
@@ -108,6 +115,7 @@ public class AuthServiceImpl implements AuthService {
 		user.setEmail(email);
 		user.setPassword(passwordEncoder.encode(request.password()));
 		user.setRole(Role.HINCHADA);
+		user.setMustChangePassword(false);
 		userRepository.save(user);
 
 		if (hinchaRepository.existsByUserId(user.getId())) {
@@ -123,7 +131,7 @@ public class AuthServiceImpl implements AuthService {
 
 		log.info("Nuevo hincha registrado: {} {} ({})", request.nombre(), request.apellido(), email);
 		String token = jwtService.generateToken(user);
-		return AuthResponse.of(token, userMapper.toResponse(user), null);
+		return AuthResponse.of(token, userMapper.toResponse(user), null, false);
 	}
 
 	@Override
@@ -148,7 +156,36 @@ public class AuthServiceImpl implements AuthService {
 		Player player = user.getPlayer();
 		PlayerResponse playerResponse = player != null ? playerMapper.toResponse(player, attributesByPlayer(player.getId())) : null;
 		String token = jwtService.generateToken(user);
-		return AuthResponse.of(token, userMapper.toResponse(user), playerResponse);
+		return AuthResponse.of(token, userMapper.toResponse(user), playerResponse, user.isMustChangePassword());
+	}
+
+	@Override
+	@Transactional
+	public void changePassword(String email, ChangePasswordRequest request) {
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"Usuario autenticado no encontrado"));
+		if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+			log.warn("Intento de cambio de contraseña con contraseña actual incorrecta: {}", email);
+			throw new InvalidPasswordException(INVALID_PASSWORD_MESSAGE);
+		}
+		user.setPassword(passwordEncoder.encode(request.newPassword()));
+		user.setMustChangePassword(false);
+		userRepository.save(user);
+		log.info("Contraseña actualizada para usuario: {}", email);
+	}
+
+	@Override
+	@Transactional
+	public void resetPassword(ResetPasswordRequest request) {
+		String email = userMapper.normalizeEmail(request.email());
+		User user = userRepository.findByEmail(email)
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"No existe un usuario con el email: " + email));
+		user.setPassword(passwordEncoder.encode(request.newPassword()));
+		user.setMustChangePassword(true);
+		userRepository.save(user);
+		log.info("Contraseña restablecida por un administrador para el usuario: {}", email);
 	}
 
 	private void validateUniqueness(String username, String email) {

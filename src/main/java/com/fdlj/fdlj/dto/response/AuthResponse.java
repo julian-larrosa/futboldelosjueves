@@ -4,10 +4,11 @@ public record AuthResponse(
 		String token,
 		String tokenType,
 		UserResponse user,
-		PlayerResponse player
+		PlayerResponse player,
+		boolean mustChangePassword
 ) {
 
-	public static AuthResponse of(String token, UserResponse user, PlayerResponse player) {
-		return new AuthResponse(token, "Bearer", user, player);
+	public static AuthResponse of(String token, UserResponse user, PlayerResponse player, boolean mustChangePassword) {
+		return new AuthResponse(token, "Bearer", user, player, mustChangePassword);
 	}
 }

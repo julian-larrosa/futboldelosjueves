@@ -37,6 +37,7 @@ public class AdminDataInitializer implements CommandLineRunner {
 		admin.setEmail(adminEmail);
 		admin.setPassword(passwordEncoder.encode(adminPassword));
 		admin.setRole(Role.ADMIN);
+		admin.setMustChangePassword(false);
 		userRepository.save(admin);
 	}
 }
