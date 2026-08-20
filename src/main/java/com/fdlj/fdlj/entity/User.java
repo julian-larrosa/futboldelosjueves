@@ -34,6 +34,9 @@ public class User {
 	@Column(name = "password", nullable = false, length = 100)
 	private String password;
 
+	@Column(name = "must_change_password", nullable = false)
+	private boolean mustChangePassword;
+
 	@Enumerated(EnumType.STRING)
 	@Column(name = "role", nullable = false, length = 20)
 	private Role role;

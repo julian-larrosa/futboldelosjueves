@@ -36,6 +36,13 @@ public class GlobalExceptionHandler {
 				.body(ErrorResponse.of(HttpStatus.UNAUTHORIZED, ex.getMessage()));
 	}
 
+	@ExceptionHandler(InvalidPasswordException.class)
+	public ResponseEntity<ErrorResponse> handleInvalidPassword(InvalidPasswordException ex) {
+		log.warn("Contraseña inválida: {}", ex.getMessage());
+		return ResponseEntity.badRequest()
+				.body(ErrorResponse.of(HttpStatus.BAD_REQUEST, ex.getMessage()));
+	}
+
 	@ExceptionHandler(InvalidMatchStateException.class)
 	public ResponseEntity<ErrorResponse> handleInvalidMatchState(InvalidMatchStateException ex) {
 		log.warn("Estado de partido inválido: {}", ex.getMessage());
