@@ -3,6 +3,7 @@ package com.fdlj.fdlj.config;
 import com.fdlj.fdlj.exception.ErrorResponse;
 import com.fdlj.fdlj.security.AuthRateLimitFilter;
 import com.fdlj.fdlj.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -65,6 +66,9 @@ public class SecurityConfig {
 						.authenticationEntryPoint(authenticationEntryPoint())
 						.accessDeniedHandler(accessDeniedHandler()))
 				.authorizeHttpRequests(auth -> {
+					// El dispatch a /error no tiene contexto de seguridad: si se exige autenticacion,
+					// cualquier error interno del server se transforma en 401 y desloguea al usuario.
+					auth.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll();
 					auth.requestMatchers("/api/auth/**").permitAll();
 					if (swaggerEnabled) {
 						auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
