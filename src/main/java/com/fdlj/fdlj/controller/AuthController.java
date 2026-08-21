@@ -1,6 +1,7 @@
 package com.fdlj.fdlj.controller;
 
 import com.fdlj.fdlj.config.SwaggerConstants;
+import com.fdlj.fdlj.dto.request.ForgotPasswordRequest;
 import com.fdlj.fdlj.dto.request.LoginRequest;
 import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
@@ -51,5 +52,15 @@ public class AuthController {
 	@Operation(summary = "Iniciar sesión", description = "Autentica un usuario con email y contraseña y devuelve un token JWT")
 	public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
 		return ResponseEntity.ok().body(ApiResponse.ok(authService.login(request)));
+	}
+
+	@PostMapping("/password/forgot")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NO_CONTENT, description = "contraseña actualizada exitosamente")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "no existe una cuenta activa con ese email")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.BAD_REQUEST, description = "datos inválidos")
+	@Operation(summary = "Recuperar contraseña", description = "Permite a un usuario establecer una nueva contraseña identificándose solo con su email")
+	public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+		authService.forgotPassword(request);
+		return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
 	}
 }
