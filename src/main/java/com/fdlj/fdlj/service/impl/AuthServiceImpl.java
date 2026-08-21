@@ -1,6 +1,7 @@
 package com.fdlj.fdlj.service.impl;
 
 import com.fdlj.fdlj.dto.request.ChangePasswordRequest;
+import com.fdlj.fdlj.dto.request.ForgotPasswordRequest;
 import com.fdlj.fdlj.dto.request.LoginRequest;
 import com.fdlj.fdlj.dto.request.RegisterHinchaRequest;
 import com.fdlj.fdlj.dto.request.RegisterRequest;
@@ -186,6 +187,20 @@ public class AuthServiceImpl implements AuthService {
 		user.setMustChangePassword(true);
 		userRepository.save(user);
 		log.info("Contraseña restablecida por un administrador para el usuario: {}", email);
+	}
+
+	@Override
+	@Transactional
+	public void forgotPassword(ForgotPasswordRequest request) {
+		String email = userMapper.normalizeEmail(request.email());
+		User user = userRepository.findByEmail(email)
+				.filter(userActivityService::isUserActive)
+				.orElseThrow(() -> new ResourceNotFoundException(
+						"No existe una cuenta activa con el email: " + email));
+		user.setPassword(passwordEncoder.encode(request.newPassword()));
+		user.setMustChangePassword(false);
+		userRepository.save(user);
+		log.info("Contraseña actualizada mediante recuperación para el usuario: {}", email);
 	}
 
 	private void validateUniqueness(String username, String email) {
