@@ -169,4 +169,30 @@ class MatchControllerTest extends IntegrationTestBase {
 				.andExpect(jsonPath("$.data.id").value(matchId))
 				.andExpect(jsonPath("$.data.cantidadConvocados").value(0));
 	}
+
+	@Test
+	void getAllMatches_conFiltros_returns200AndFiltra() throws Exception {
+		String admin = adminToken();
+		createMatch(admin);
+		mockMvc.perform(get("/api/matches")
+						.header("Authorization", bearer(admin))
+						.param("estado", "PROGRAMADO")
+						.param("lugar", "cancha")
+						.param("fechaDesde", OffsetDateTime.now().minusDays(1).toString()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.content").isArray())
+				.andExpect(jsonPath("$.data.totalElements").value(1));
+	}
+
+	@Test
+	void getAllMatches_soloEstado_returns200AndFiltra() throws Exception {
+		String admin = adminToken();
+		createMatch(admin);
+		mockMvc.perform(get("/api/matches")
+						.header("Authorization", bearer(admin))
+						.param("estado", "PROGRAMADO"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.totalElements").value(1));
+	}
 }
