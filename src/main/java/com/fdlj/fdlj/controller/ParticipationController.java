@@ -1,6 +1,7 @@
 package com.fdlj.fdlj.controller;
 
 import com.fdlj.fdlj.config.SwaggerConstants;
+import com.fdlj.fdlj.dto.request.MatchStatisticsBatchRequest;
 import com.fdlj.fdlj.dto.request.MatchStatisticsUpdateRequest;
 import com.fdlj.fdlj.dto.request.ParticipationRequest;
 import com.fdlj.fdlj.dto.response.ApiResponse;
@@ -13,6 +14,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -79,6 +82,19 @@ public class ParticipationController {
 	public ResponseEntity<ApiResponse<ParticipationResponse>> getMyParticipation(@PathVariable Long matchId) {
 		Long playerId = currentPlayerService.getCurrentPlayer().getId();
 		return ResponseEntity.ok().body(ApiResponse.ok(participationService.getMyParticipation(matchId, playerId)));
+	}
+
+	@PutMapping("/stats")
+	@PreAuthorize("hasRole('ADMIN')")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.OK, description = "estadísticas en lote actualizadas")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.CONFLICT, description = "estado inválido o inconsistencia de goles")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = SwaggerConstants.NOT_FOUND, description = "partido o jugador no encontrado")
+	@Operation(summary = "Registrar estadísticas individuales en lote", description = "Registra goles y participación efectiva de múltiples jugadores a la vez")
+	public ResponseEntity<ApiResponse<List<ParticipationResponse>>> updateStatisticsBatch(
+			@PathVariable Long matchId,
+			@Valid @RequestBody MatchStatisticsBatchRequest request) {
+		return ResponseEntity.ok().body(ApiResponse.ok(
+				participationService.updateStatisticsBatch(matchId, request)));
 	}
 
 	@PutMapping("/{playerId}")

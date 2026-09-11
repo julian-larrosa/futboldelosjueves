@@ -1,6 +1,7 @@
 package com.fdlj.fdlj.service.impl;
 
 import com.fdlj.fdlj.dto.request.MatchResultRequest;
+import com.fdlj.fdlj.dto.request.MatchStatisticsBatchRequest;
 import com.fdlj.fdlj.dto.request.MatchStatisticsUpdateRequest;
 import com.fdlj.fdlj.dto.response.MatchResultResponse;
 import com.fdlj.fdlj.dto.response.ParticipationResponse;
@@ -18,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -68,6 +72,33 @@ public class ResultServiceImpl implements ResultService {
 		participation.setJugoEfectivamente(request.jugoEfectivamente());
 		log.info("Stats actualizadas: jugador id={} en partido id={}, goles={}", playerId, matchId, request.goles());
 		return participationMapper.toResponse(participationRepository.save(participation));
+	}
+
+	@Override
+	@Transactional
+	public List<ParticipationResponse> updateStatisticsBatch(Long matchId, MatchStatisticsBatchRequest request) {
+		Match match = findMatch(matchId);
+		if (match.getEstado() != MatchStatus.EN_CURSO && match.getEstado() != MatchStatus.FINALIZADO) {
+			throw new InvalidMatchStateException(
+					"Las estadísticas individuales solo pueden registrarse en un partido en curso o finalizado");
+		}
+		List<MatchParticipation> updatedList = new ArrayList<>();
+		for (var playerStat : request.stats()) {
+			MatchParticipation participation = participationRepository.findByMatchIdAndPlayerId(matchId, playerStat.playerId())
+					.orElseThrow(() -> new ResourceNotFoundException("El jugador no está convocado para este partido: " + playerStat.playerId()));
+			participation.setGoles(playerStat.goles());
+			participation.setJugoEfectivamente(playerStat.jugoEfectivamente());
+			updatedList.add(participation);
+		}
+		participationRepository.saveAll(updatedList);
+		participationRepository.flush();
+
+		if (match.getGolesEquipoA() != null && match.getGolesEquipoB() != null) {
+			goalsConsistencyValidator.validateGoals(matchId, match.getGolesEquipoA(), match.getGolesEquipoB());
+		}
+
+		log.info("Stats en lote actualizadas para {} jugadores en partido id={}", updatedList.size(), matchId);
+		return updatedList.stream().map(participationMapper::toResponse).toList();
 	}
 
 	private Match findMatch(Long id) {
