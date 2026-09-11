@@ -170,4 +170,61 @@ class ParticipationControllerTest extends IntegrationTestBase {
 						.content("{\"goles\":1,\"jugoEfectivamente\":true}"))
 				.andExpect(status().isConflict());
 	}
+
+	@Test
+	void convocarPlayer_whenProgramado_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = createMatch(admin);
+		Long playerId = createPlayer("NoAbierto");
+		mockMvc.perform(post("/api/matches/" + matchId + "/participations")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"playerId\":" + playerId + "}")
+						.header("Authorization", bearer(admin)))
+				.andExpect(status().isConflict());
+	}
+
+	@Test
+	void updateStatisticsBatch_success() throws Exception {
+		String admin = adminToken();
+		Long matchId = setupFinishedMatch10(admin);
+		List<Long> ids = convocadosIds(admin, matchId);
+
+		String batchBody = """
+				{
+					"stats": [
+						{"playerId": %d, "goles": 0, "jugoEfectivamente": true},
+						{"playerId": %d, "goles": 1, "jugoEfectivamente": true}
+					]
+				}
+				""".formatted(ids.get(0), ids.get(1));
+
+		mockMvc.perform(put("/api/matches/" + matchId + "/participations/stats")
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(batchBody))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.data.length()").value(2));
+	}
+
+	@Test
+	void updateStatisticsBatch_exceedsGoals_returns409() throws Exception {
+		String admin = adminToken();
+		Long matchId = setupFinishedMatch10(admin);
+		List<Long> ids = convocadosIds(admin, matchId);
+
+		String batchBody = """
+				{
+					"stats": [
+						{"playerId": %d, "goles": 99, "jugoEfectivamente": true}
+					]
+				}
+				""".formatted(ids.get(0));
+
+		mockMvc.perform(put("/api/matches/" + matchId + "/participations/stats")
+						.header("Authorization", bearer(admin))
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(batchBody))
+				.andExpect(status().isConflict());
+	}
 }

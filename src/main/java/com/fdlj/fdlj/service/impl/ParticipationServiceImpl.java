@@ -1,5 +1,6 @@
 package com.fdlj.fdlj.service.impl;
 
+import com.fdlj.fdlj.dto.request.MatchStatisticsBatchRequest;
 import com.fdlj.fdlj.dto.request.ParticipationRequest;
 import com.fdlj.fdlj.dto.response.PagedResponse;
 import com.fdlj.fdlj.dto.response.ParticipationResponse;
@@ -15,6 +16,7 @@ import com.fdlj.fdlj.repository.MatchParticipationRepository;
 import com.fdlj.fdlj.repository.MatchRepository;
 import com.fdlj.fdlj.repository.PlayerRepository;
 import com.fdlj.fdlj.service.ParticipationService;
+import com.fdlj.fdlj.service.ResultService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -35,12 +39,13 @@ public class ParticipationServiceImpl implements ParticipationService {
 	private final MatchParticipationRepository participationRepository;
 	private final PlayerRepository playerRepository;
 	private final MatchParticipationMapper participationMapper;
+	private final ResultService resultService;
 
 	@Override
 	@Transactional
 	public ParticipationResponse addPlayerToConvocatoria(Long matchId, ParticipationRequest request) {
 		Match match = findMatch(matchId);
-		ensureState(match, MatchStatus.PROGRAMADO, MatchStatus.CONVOCATORIA_ABIERTA);
+		ensureState(match, MatchStatus.CONVOCATORIA_ABIERTA);
 		Player player = findActivePlayer(request.playerId());
 		if (participationRepository.existsByMatchIdAndPlayerId(matchId, player.getId())) {
 			throw new ResourceAlreadyExistsException("El jugador ya está convocado para este partido");
@@ -61,10 +66,16 @@ public class ParticipationServiceImpl implements ParticipationService {
 	@Transactional
 	public void removePlayerFromConvocatoria(Long matchId, Long playerId) {
 		Match match = findMatch(matchId);
-		ensureState(match, MatchStatus.PROGRAMADO, MatchStatus.CONVOCATORIA_ABIERTA);
+		ensureState(match, MatchStatus.CONVOCATORIA_ABIERTA);
 		MatchParticipation participation = findParticipation(matchId, playerId);
 		log.info("Jugador id={} removido de convocatoria del partido id={}", playerId, matchId);
 		participationRepository.delete(participation);
+	}
+
+	@Override
+	@Transactional
+	public List<ParticipationResponse> updateStatisticsBatch(Long matchId, MatchStatisticsBatchRequest request) {
+		return resultService.updateStatisticsBatch(matchId, request);
 	}
 
 	@Override
